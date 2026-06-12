@@ -1,103 +1,167 @@
-# Roadmap to ForeFlight-class parity
+# Headwind Product Roadmap
 
-## Path to 1.0 (shippable on the App Store)
+The thesis: a free, open-source EFB can reach ForeFlight-class capability for
+the GA pilot because every load-bearing data source — airports, charts,
+plates, weather, airspace, TFRs — is published free by the FAA and NOAA.
+Headwind's job is great engineering and design on top of free data, with all
+flight-critical math in the tested `HeadwindCore` package and AI strictly
+advisory.
 
-### M1 — Hardening (engineering, ~1–2 weeks)
-Blockers that are pure code:
-- **Data-cycle automation.** Bundled FAA data goes stale on fixed clocks:
-  airports/navaids on the 28-day NASR cycle, plates on the 28-day d-TPP
-  cycle (current bundle: 2606, expires 07/09/26 — after that the PDF URLs
-  break). Add: scheduled GitHub Action that regenerates both bundles and
-  opens a PR each cycle; in-app effective-date check that warns when data
-  is stale and falls back to fetching the current plate index remotely.
-- **Privacy manifest** (`PrivacyInfo.xcprivacy`) — required for App Store
-  submission (UserDefaults et al. are "required-reason" APIs).
-- **First-launch gate**: not-for-navigation acknowledgement + location
-  permission pre-prompt + 3-screen feature intro.
-- **True-vs-magnetic honesty pass**: every heading/course in the UI gets an
-  explicit °T label until WMM lands (pilots fly magnetic; silent true
-  headings are a correctness issue).
-- **Offline/error audit**: every screen must degrade gracefully with no
-  network (weather shows age-labeled cache, tiles serve disk, plates show
-  the offline copy or a clear error).
-- Point `screenshots.yml`/`ci.yml` triggers at `main`.
+Sequencing logic: alternate **trust releases** (correctness, data depth) with
+**capability releases** (new things the app can do), and never ship a number
+a pilot could misread.
 
-### M2 — Device reality & beta (calendar, ~3–4 weeks)
-The app has only ever run in CI simulators:
-- Apple Developer account; run on real iPhone + iPad: GPS in motion,
-  memory with the full database, battery on a 2-hour map session, launch
-  time (5.6 MB + 1.4 MB JSON decodes — move to SQLite if slow on hardware).
-- iPad layout pass (sidebar, multitasking, pointer/keyboard).
-- Accessibility: VoiceOver labels for markers/instruments, Dynamic Type.
-- MetricKit crash/hang collection (no third-party analytics).
-- **TestFlight closed beta with 10–20 real GA pilots/CFIs**, two weeks
-  minimum — they will find the workflow truths no simulator run can.
+---
 
-### M3 — Store packaging (~1 week)
-- Privacy policy + support page (GitHub Pages), App Privacy questionnaire
-  (location: used, not linked, no tracking).
-- Listing: description, keywords, screenshots (reuse the CI capture rig),
-  preview video optional.
-- Submission with review-rejection buffer; aviation apps clear review
-  routinely with clear disclaimers.
+## Shipped (v0.1 – v0.4)
 
-### Post-1.0
-- Magnetic variation (WMM) → magnetic courses/headings everywhere
-- NOTAMs (FAA NOTAM API key) beyond TFRs
-- ADS-B In via GDL90 (Stratux/Sentry): traffic + FIS-B weather in flight
-- GPS track logging with logbook auto-fill and breadcrumb replay
-- Widgets (home-airport METAR), Live Activities (active leg), Siri/App
-  Intents, natural-language route entry via Apple Intelligence
-- Terrain awareness, glide ring, georeferenced ownship on plates
+- App shell: Liquid Glass design system, sidebar-adaptable tabs, iOS/iPadOS 26
+- Full US directory: 16,846 airports (runways with true headings,
+  frequencies), 2,804 navaids; ranked search; nearest
+- Moving map on MKMapView: clean aeronautical mode (muted base + vector
+  Class B/C/D), FAA raster layers (VFR Sectional/Terminal, IFR Low/High)
+  with disk cache, offline area downloads, and z12+ over-zoom
+- Live TFR polygons + grouped airspace list
+- Weather: METAR/TAF (live, categorized), winds aloft (full FB decoder),
+  density altitude, per-runway head/crosswind advisor
+- Planner: mixed airport/VOR routes, wind-triangle legs, ETE/fuel totals
+- Approach plates: 24,006 d-TPP procedures, grouped per airport, PDF viewer,
+  offline cache keyed by cycle
+- W&B with CG envelope chart (3 sample aircraft), checklists, SwiftData
+  logbook, AI briefing (on-device Apple Intelligence, grounded, with
+  deterministic fallback)
+- Infra: data pipelines (`build-airport-db.py`, `build-plates-index.py`),
+  Linux CI for ~80 core tests, macOS CI that builds the app and commits
+  simulator screenshots
 
-## v0.1 — Foundation (this release)
-- App shell, Liquid Glass design system, sidebar-adaptable tabs
-- Moving map with ownship, route overlay, category-colored airports
-- Live METAR/TAF, flight categories, favorites
-- Route planner with wind triangle, ETE/fuel totals
-- AI briefing (Apple Intelligence, grounded + fallback)
-- Weight & balance with CG envelope chart
-- Checklists, SwiftData logbook
-- HeadwindCore tested in Linux CI
+---
 
-## v0.2 — Real data at scale ✅ (this release)
-- FAA NASR / OurAirports import pipeline (all open US airports, runways with
-  true headings, frequencies, navaids) — `scripts/build-airport-db.py`
-- Async-loaded in-memory directory; zoom-aware map layering
-- Navaids as route waypoints (VOR/NDB idents resolve in the planner)
-- Winds aloft: FB product fetch + full decoder, region viewer
-- Density altitude and per-runway head/crosswind advisor on airport pages
-- Multiple aircraft W&B profiles
+## 1.0 — "Preflight" (ship vehicle)
 
-## v0.2.x — Data depth (next)
-- On-device SQLite/GRDB store with incremental NASR cycle updates
-- Magnetic variation model (WMM) for magnetic courses/headings
-- NOTAMs via FAA NOTAM API (requires API key provisioning)
-- Per-leg winds interpolation from the FB grid into the planner
+Goal: a stranger downloads it and plans a VFR flight safely.
 
-## v0.3 — Charts & airspace ✅ (this release)
-- FAA VFR sectional/terminal + IFR low/high raster layers (FAA public
-  tile service) with disk cache and offline area downloads
-- Live TFR polygons on the map + grouped airspace list (tfr.faa.gov)
+**M1 Hardening (engineering, ~1–2 wks)**
+- Data-cycle automation: scheduled GitHub Action regenerates airport and
+  plate bundles each 28-day cycle and opens a PR; in-app effective-date
+  staleness warning; remote plate-index fallback when the bundle expires
+  (current plates cycle 2606 expires 07/09/26)
+- `PrivacyInfo.xcprivacy` privacy manifest (required for submission)
+- First-launch gate: not-for-navigation acknowledgement, location
+  pre-prompt, short feature intro
+- Explicit °T labels on every heading/course until WMM lands
+- Offline/error audit on every screen; CI triggers moved to `main`
 
-## v0.3.x — Charts depth (next)
-- Geo-referenced approach plates (FAA d-TPP), organized by airport
-- Document binder (POH, certificates) with iCloud sync
-- Chart currency tracking against the 56-day chart cycle
+**M2 Device reality & beta (~3–4 wks calendar)**
+- Apple Developer account; real iPhone/iPad profiling (GPS in motion,
+  battery, launch decode — move bundles to SQLite if hardware says so)
+- iPad layout, VoiceOver, Dynamic Type passes; MetricKit crash collection
+- TestFlight closed beta with 10–20 GA pilots/CFIs, 2+ weeks
 
-## v0.4 — In-flight
-- ADS-B In traffic & FIS-B weather via GDL90 over UDP (Stratux/Sentry/Stratus)
-- Terrain awareness: profile view + altitude-colored terrain shading
-- Glide range ring, nearest-airport emergency mode
-- Track logging with breadcrumb replay and logbook auto-fill
+**M3 Store packaging (~1 wk)**
+- Privacy policy + support page (GitHub Pages), App Privacy answers,
+  listing assets (reuse the CI screenshot rig), submission buffer
 
-## v0.5 — Intelligence & polish
-- Apple Intelligence route insights (alternates, fuel stops) — advisory only
-- App Intents + Siri ("Brief me for the flight to Tahoe")
-- Live Activities for active flight plans; StandBy instrument mode
-- iPad multi-window, pointer/keyboard shortcuts, widgets
+---
 
-## Quality bars
-- Every release: HeadwindCore coverage stays green on Linux CI
-- macOS CI job with `xcodebuild test` once a hosted iOS 26 runner image is available
-- Accessibility audit (VoiceOver, Dynamic Type) before any App Store release
+## 1.x — Planning depth (trust releases)
+
+**1.1 Navigation correctness**
+- WMM magnetic variation → magnetic courses/headings app-wide
+- Per-leg winds: interpolate the FB winds-aloft grid into each leg instead
+  of one manual wind input; altitude-aware
+- Climb/descent: TOC/TOD, block fuel with taxi/climb/reserve, required
+  reserve warnings, alternate planning
+
+**1.2 Full briefing parity**
+- AIRMETs/SIGMETs and PIREPs (free aviationweather.gov endpoints) drawn on
+  the map and in briefings
+- NEXRAD radar + satellite weather map layers (free NOAA/mesonet tiles)
+- NOTAMs beyond TFRs (FAA NOTAM API — requires free API key provisioning)
+- Briefing screen restructured to the standard format: adverse conditions →
+  synopsis → current → forecast → winds → NOTAMs; AI summary on top,
+  always grounded, always labeled
+
+**1.3 Aircraft & performance**
+- User-defined aircraft (SwiftData): W&B stations/envelopes, cruise
+  profiles, fuel curves
+- POH performance: takeoff/landing distance vs density altitude/weight/wind
+- Maintenance tracking: oil, annual, transponder/pitot-static, ELT dates
+
+**1.4 Pilot's binder**
+- Custom checklist editor with import/export
+- Document binder: PDFs (POH, insurance, certificates) with iCloud Drive
+- Saved routes library; named flight plans; CloudKit sync across devices
+
+---
+
+## 2.x — In flight (capability releases)
+
+**2.0 Track logging**
+- GPS breadcrumb recording with auto takeoff/landing detection
+- Auto-filled logbook entries (times, day/night, landings) — pilot confirms
+- Track replay on the map; GPX/KML export
+
+**2.1 ADS-B In (GDL90 over UDP — Stratux, Sentry, Stratus)**
+- Traffic: relative-altitude targets with trend vectors and alerting
+- FIS-B in-flight weather: NEXRAD, METARs, TAFs, NOTAMs with no cell signal
+- AHRS backup attitude from receiver hardware
+
+**2.2 Terrain & safety**
+- Route terrain profile (USGS/Copernicus elevation), altitude-colored
+  terrain shading on the map
+- FAA obstacle database (DOF) near the route
+- Wind-aware glide range ring; emergency "nearest" mode with best-glide
+  guidance
+
+**2.3 Georeferenced plates & taxi**
+- Ownship position drawn on approach plates and airport diagrams
+  (FAA georef bounds)
+- Runway awareness: "approaching RWY 28L" advisories while taxiing
+
+---
+
+## 3.x — Platform & intelligence
+
+**3.1 Apple platform depth**
+- Widgets (home-airport METAR, next plan), Live Activities (active leg on
+  Lock Screen / Dynamic Island), StandBy instrument mode
+- Apple Watch: nearest airport, METAR glance, flight timers
+- Siri / App Intents: "Brief me for my flight", "Start the before-takeoff
+  checklist"; iPad multi-window + external display support
+
+**3.2 Apple Intelligence as interface (always grounded, always advisory)**
+- Natural-language route entry: "Palo Alto to Tahoe at 8:30, stay out of
+  the Bravo" → structured route via guided generation; numbers still come
+  from HeadwindCore
+- Briefing Q&A over the fetched data; plain-English NOTAM summaries
+- Post-flight debrief: narrative generated from the track log
+- Smart fuel-stop and alternate suggestions
+
+**3.3 Sync & ecosystem**
+- Logbook export/import: ForeFlight CSV (switcher path!), MyFlightbook,
+  Garmin Pilot
+- CFI digital endorsements; shared routes between pilots
+
+---
+
+## 4.x — Beyond the weekend pilot
+
+- IFR tooling: airway graph routing (V/J airways), preferred/TEC routes,
+  expected-route prediction; filing requires a Leidos 1800wxbrief
+  partnership — flagged, not assumed
+- International: Canada/Mexico data, ICAO flight-plan formats
+- Mission modes: helicopter, seaplane, glider (soaring layers)
+- Community chart/data mirrors to keep the $0-infrastructure promise at scale
+
+---
+
+## Standing principles
+
+- Free forever for the core; all data from public FAA/NOAA sources;
+  any feature requiring a paid key or partnership is flagged before design
+- Flight math lives only in tested HeadwindCore; the language model never
+  computes a number a pilot acts on
+- Every release: Linux core tests green, macOS build green, CI screenshots
+  refreshed, data bundles current
+- Not-for-navigation posture until the data pipeline has cycle-currency
+  guarantees end to end
