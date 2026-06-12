@@ -1,0 +1,34 @@
+<?xml version="1.0"?><svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#1B2A4E"/><stop offset="1" stop-color="#0F1B38"/>
+  </linearGradient>
+  <linearGradient id="skyhalf" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#54B9F0"/><stop offset="1" stop-color="#2E7BE5"/>
+  </linearGradient>
+  <linearGradient id="earth" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#C07434"/><stop offset="1" stop-color="#8A4D22"/>
+  </linearGradient>
+  <clipPath id="dial"><circle cx="512" cy="512" r="358"/></clipPath>
+</defs>
+<rect width="1024" height="1024" fill="url(#panel)"/>
+<g clip-path="url(#dial)">
+  <g transform="rotate(-10 512 512)">
+    <rect x="52" y="52" width="920" height="460" fill="url(#skyhalf)"/>
+    <rect x="52" y="512" width="920" height="460" fill="url(#earth)"/>
+    <rect x="52" y="506" width="920" height="12" fill="#FFFFFF"/>
+    <rect x="427" y="402" width="170" height="9" rx="4" fill="#FFFFFF" fill-opacity="0.55"/>
+    <rect x="459" y="452" width="106" height="9" rx="4" fill="#FFFFFF" fill-opacity="0.45"/>
+    <rect x="459" y="562" width="106" height="9" rx="4" fill="#FFFFFF" fill-opacity="0.45"/>
+    <rect x="427" y="612" width="170" height="9" rx="4" fill="#FFFFFF" fill-opacity="0.55"/>
+  </g>
+</g>
+<circle cx="512" cy="512" r="364" fill="none" stroke="#FFFFFF" stroke-opacity="0.16" stroke-width="16"/>
+<g fill="#FFD60A">
+  <rect x="312" y="500" width="130" height="22" rx="11"/>
+  <rect x="420" y="500" width="22" height="44" rx="11"/>
+  <rect x="582" y="500" width="130" height="22" rx="11"/>
+  <rect x="582" y="500" width="22" height="44" rx="11"/>
+  <circle cx="512" cy="511" r="17"/>
+</g>
+</svg>
