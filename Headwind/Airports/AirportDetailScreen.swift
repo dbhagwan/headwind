@@ -6,6 +6,7 @@ struct AirportDetailScreen: View {
 
     @Environment(WeatherService.self) private var weather
     @Environment(PlanStore.self) private var plan
+    @Environment(PlateStore.self) private var plates
 
     @State private var addedToRoute = false
 
@@ -98,6 +99,20 @@ struct AirportDetailScreen: View {
                 }
             }
 
+            if !plates.index.plates(for: airport.ident).isEmpty {
+                Section {
+                    NavigationLink {
+                        PlatesListScreen(airport: airport)
+                    } label: {
+                        LabeledContent {
+                            Text(plates.index.plates(for: airport.ident).count.formatted())
+                        } label: {
+                            Label("Procedures & Plates", systemImage: "doc.on.doc")
+                        }
+                    }
+                }
+            }
+
             Section {
                 Button {
                     plan.append(airport: airport)
@@ -114,6 +129,7 @@ struct AirportDetailScreen: View {
         .navigationTitle(airport.ident)
         .navigationBarTitleDisplayMode(.inline)
         .task {
+            await plates.load()
             await weather.refreshMetars(for: [airport.ident])
             await weather.refreshTAF(for: airport.ident)
         }

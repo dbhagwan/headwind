@@ -10,6 +10,7 @@ struct HeadwindApp: App {
     @State private var briefing = BriefingService()
     @State private var tfrs = TFRService()
     @State private var airspace = AirspaceService()
+    @State private var plates = PlateStore()
 
     var body: some Scene {
         WindowGroup {
@@ -21,6 +22,7 @@ struct HeadwindApp: App {
                 .environment(briefing)
                 .environment(tfrs)
                 .environment(airspace)
+                .environment(plates)
         }
         .modelContainer(for: LogEntry.self)
     }
