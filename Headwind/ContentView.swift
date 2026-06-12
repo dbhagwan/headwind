@@ -7,6 +7,7 @@ enum AppTab: String, Hashable {
 struct ContentView: View {
     @Environment(PlanStore.self) private var plan
     @Environment(AirportStore.self) private var airports
+    @Environment(LocationService.self) private var location
     @Environment(\.modelContext) private var modelContext
 
     @State private var selection: AppTab = ContentView.initialTab()
@@ -34,6 +35,7 @@ struct ContentView: View {
         }
         .tabViewStyle(.sidebarAdaptable)
         .task {
+            location.start()
             await airports.load()
             DemoData.seedIfNeeded(plan: plan, airports: airports, context: modelContext)
         }

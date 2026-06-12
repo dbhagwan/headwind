@@ -8,8 +8,11 @@ struct AirportSearchScreen: View {
     @State private var query = ""
 
     private var results: [Airport] {
-        if query.isEmpty, let coordinate = location.coordinate {
-            return airports.nearest(to: Coordinate(coordinate), limit: 15)
+        if query.isEmpty {
+            if let coordinate = location.coordinate {
+                return airports.nearest(to: Coordinate(coordinate), limit: 15)
+            }
+            return airports.featuredAirports
         }
         return airports.search(query)
     }

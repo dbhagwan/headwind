@@ -12,6 +12,8 @@ import HeadwindCore
 final class AirportStore {
     private(set) var database = AirportDatabase(airports: [], navaids: [])
     private(set) var isLoading = true
+    /// Large airports, A–Z — the search tab's fallback before a location fix.
+    private(set) var featuredAirports: [Airport] = []
     private var loadTask: Task<Void, Never>?
 
     var airportCount: Int { database.airports.count }
@@ -46,6 +48,9 @@ final class AirportStore {
         }.value
 
         database = db
+        featuredAirports = db.airports
+            .filter { $0.kind == .large }
+            .sorted { $0.ident < $1.ident }
         isLoading = false
     }
 
