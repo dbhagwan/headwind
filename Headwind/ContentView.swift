@@ -34,6 +34,7 @@ struct ContentView: View {
         }
         .tabViewStyle(.sidebarAdaptable)
         .task {
+            await airports.load()
             DemoData.seedIfNeeded(plan: plan, airports: airports, context: modelContext)
         }
     }

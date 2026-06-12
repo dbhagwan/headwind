@@ -34,14 +34,21 @@ Captured automatically in CI on the iOS 26 simulator (`.github/workflows/screens
 
 | Area | What works today |
 | --- | --- |
-| **Moving map** | MapKit map with ownship position, live GS/TRK/ALT glass instrument strip, airports colored by live flight category, active route overlay, imagery toggle |
-| **Weather** | Live METARs and TAFs from the free aviationweather.gov API, VFR/MVFR/IFR/LIFR categorization, favorite stations, pull-to-refresh |
-| **Flight planning** | Route entry by identifier, great-circle distance/course per leg, wind-triangle headings and ground speeds, ETE and fuel burn totals, drag-to-reorder, persisted across launches |
+| **Airports & navaids** | Full US directory from the FAA (via OurAirports): 16,800+ open airports — every GA field, seaplane base, and major — plus 2,800+ VORs/NDBs. Runways with true headings, frequencies, search, nearest-airport ranking |
+| **Moving map** | MapKit map with ownship position, live GS/TRK/ALT glass instrument strip, zoom-aware airport layers colored by live flight category, active route overlay, imagery toggle |
+| **Weather** | Live METARs and TAFs from the free aviationweather.gov API, VFR/MVFR/IFR/LIFR categorization, favorite stations, winds-aloft (FB) viewer, density altitude, per-runway head/crosswind advisor |
+| **Flight planning** | Routes mixing airports and navaids ("KPAO OSI KMRY"), great-circle distance/course per leg, wind-triangle headings and ground speeds, ETE and fuel burn totals, drag-to-reorder, persisted across launches |
 | **AI briefing** | Route-ordered plain-English weather briefing via the on-device Apple Intelligence model, grounded in actual METARs; deterministic summarizer fallback |
-| **Weight & balance** | Interactive loading stations with live CG envelope chart (Swift Charts), gross-weight and envelope checks |
+| **Weight & balance** | Multiple aircraft profiles (C172S, Archer, C182T) with live CG envelope chart (Swift Charts), gross-weight and envelope checks |
 | **Checklists** | Phase-grouped checklists with progress tracking and emergency items |
 | **Logbook** | SwiftData-backed flight log with totals |
-| **Airports** | Search tab (identifier/name/city), nearest-airport ranking, detail pages with runways, frequencies, and live weather |
+
+Regenerate the bundled database from the current FAA cycle anytime:
+
+```sh
+curl -sLO https://davidmegginson.github.io/ourairports-data/{airports,runways,airport-frequencies,navaids}.csv
+python3 scripts/build-airport-db.py .
+```
 
 ## Project layout
 

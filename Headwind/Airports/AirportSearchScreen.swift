@@ -27,7 +27,9 @@ struct AirportSearchScreen: View {
             }
             .searchable(text: $query, prompt: "Identifier, name, or city")
             .overlay {
-                if results.isEmpty {
+                if airports.isLoading {
+                    ProgressView("Loading airport directory…")
+                } else if results.isEmpty {
                     ContentUnavailableView.search(text: query)
                 }
             }
@@ -43,10 +45,10 @@ struct AirportRow: View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 8) {
-                    Text(airport.icao)
+                    Text(airport.ident)
                         .font(.headline)
                         .monospaced()
-                    if let category = weather.metar(for: airport.icao)?.flightCategory {
+                    if let category = weather.metar(for: airport.ident)?.flightCategory {
                         FlightCategoryBadge(category: category)
                     }
                 }

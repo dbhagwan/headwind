@@ -16,12 +16,22 @@ struct MoreScreen: View {
                         Label("Checklists", systemImage: "checklist")
                     }
                     NavigationLink {
+                        WindsAloftScreen()
+                    } label: {
+                        Label("Winds Aloft", systemImage: "wind")
+                    }
+                    NavigationLink {
                         BriefingScreen()
                     } label: {
                         Label("AI Briefing", systemImage: "sparkles")
                     }
                 }
                 Section("App") {
+                    NavigationLink {
+                        SettingsScreen()
+                    } label: {
+                        Label("Settings", systemImage: "gearshape")
+                    }
                     NavigationLink {
                         AboutScreen()
                     } label: {
@@ -31,6 +41,37 @@ struct MoreScreen: View {
             }
             .navigationTitle("More")
         }
+    }
+}
+
+struct SettingsScreen: View {
+    @Environment(AirportStore.self) private var airports
+    @AppStorage("settings.homeAirport") private var homeAirport = ""
+
+    var body: some View {
+        List {
+            Section("Pilot") {
+                LabeledContent("Home airport") {
+                    TextField("KPAO", text: $homeAirport)
+                        .textInputAutocapitalization(.characters)
+                        .autocorrectionDisabled()
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 100)
+                }
+            }
+            Section("Database") {
+                LabeledContent("Airports", value: airports.airportCount.formatted())
+                LabeledContent("Navaids", value: airports.navaidCount.formatted())
+                LabeledContent("Source", value: "FAA via OurAirports")
+            }
+            Section {
+                Text("Airport and navaid data is regenerated from the public FAA NASR cycle with scripts/build-airport-db.py.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .navigationTitle("Settings")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -55,11 +96,11 @@ struct AboutScreen: View {
 
             Section("Data Sources") {
                 LabeledContent("Weather", value: "aviationweather.gov")
-                LabeledContent("Airports", value: "Bundled sample (v0.1)")
+                LabeledContent("Airports & navaids", value: "FAA / OurAirports")
             }
 
             Section("Important") {
-                Text("Headwind is not certified for navigation and is not a substitute for official charts, weather briefings, or NOTAMs. All bundled data is for planning and educational use only. The pilot in command is solely responsible for the safety of each flight.")
+                Text("Headwind is not certified for navigation and is not a substitute for official charts, weather briefings, or NOTAMs. The pilot in command is solely responsible for the safety of each flight.")
                     .font(.footnote)
             }
         }

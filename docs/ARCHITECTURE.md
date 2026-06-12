@@ -44,7 +44,8 @@ in CI without a macOS runner.
 | Data | Source | Notes |
 | --- | --- | --- |
 | METAR / TAF | `aviationweather.gov/api/data` | Free, no key. Decoder is tolerant of mixed types (`"VRB"`, `"10+"`). |
-| Airports | Bundled `airports.json` | v0.1 sample; replaced by FAA NASR/OurAirports pipeline (see roadmap). |
+| Winds aloft | `aviationweather.gov/api/data/windtemp` | FB text product; full decoder (high-speed encoding, implicit negative temps) in `WindsAloftParser`. |
+| Airports & navaids | Bundled `us-airports.json` / `us-navaids.json` | Generated from FAA data via OurAirports by `scripts/build-airport-db.py` (16.8k airports, 2.8k navaids). Decoded off-main at launch; the map queries by region + kind. |
 | AI briefings | On-device FoundationModels | Prompt is grounded in raw METARs; deterministic `MetarSummarizer` is the universal fallback and the grounding text. |
 
 ## Safety posture

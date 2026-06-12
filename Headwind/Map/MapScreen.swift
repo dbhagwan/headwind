@@ -2,8 +2,8 @@ import SwiftUI
 import MapKit
 import HeadwindCore
 
-/// The moving map: ownship position, airports, the active route, and a
-/// Liquid Glass instrument strip.
+/// The moving map: ownship position, airports filtered by zoom level,
+/// the active route, and a Liquid Glass instrument strip.
 struct MapScreen: View {
     @Environment(AirportStore.self) private var airports
     @Environment(LocationService.self) private var location
@@ -11,6 +11,8 @@ struct MapScreen: View {
     @Environment(WeatherService.self) private var weather
 
     @State private var position: MapCameraPosition = .userLocation(fallback: .automatic)
+    @State private var visibleRegion: MKCoordinateRegion?
+    @State private var visibleAirports: [Airport] = []
     @State private var showsImagery = false
     @State private var selectedAirport: Airport?
 
@@ -18,11 +20,11 @@ struct MapScreen: View {
         Map(position: $position) {
             UserAnnotation()
 
-            ForEach(airports.airports) { airport in
-                Annotation(airport.icao, coordinate: airport.coordinate.cl) {
+            ForEach(visibleAirports) { airport in
+                Annotation(airport.ident, coordinate: airport.coordinate.cl) {
                     AirportMarker(
                         airport: airport,
-                        category: weather.metar(for: airport.icao)?.flightCategory
+                        category: weather.metar(for: airport.ident)?.flightCategory
                     )
                     .onTapGesture { selectedAirport = airport }
                 }
@@ -43,6 +45,10 @@ struct MapScreen: View {
             MapCompass()
             MapScaleView()
         }
+        .onMapCameraChange(frequency: .onEnd) { context in
+            visibleRegion = context.region
+            updateVisibleAirports()
+        }
         .overlay(alignment: .bottomTrailing) {
             mapActions
                 .padding(.trailing, 12)
@@ -61,7 +67,42 @@ struct MapScreen: View {
         }
         .task {
             location.start()
-            await weather.refreshMetars(for: airports.airports.map(\.icao))
+            await airports.load()
+            updateVisibleAirports()
+        }
+        .onChange(of: airports.isLoading) {
+            updateVisibleAirports()
+        }
+    }
+
+    /// Filters the 16k-airport directory to what the camera can usefully
+    /// show: majors when zoomed out, every GA field once zoomed in.
+    private func updateVisibleAirports() {
+        guard !airports.database.isEmpty, let region = visibleRegion else { return }
+
+        let span = max(region.span.latitudeDelta, region.span.longitudeDelta)
+        let kinds: Set<AirportKind>
+        if span > 6 {
+            kinds = [.large]
+        } else if span > 2 {
+            kinds = [.large, .medium]
+        } else {
+            kinds = Set(AirportKind.allCases)
+        }
+
+        let bounds = GeoBounds(
+            minLat: region.center.latitude - region.span.latitudeDelta / 2,
+            maxLat: region.center.latitude + region.span.latitudeDelta / 2,
+            minLon: region.center.longitude - region.span.longitudeDelta / 2,
+            maxLon: region.center.longitude + region.span.longitudeDelta / 2
+        )
+        visibleAirports = airports.database.airports(within: bounds, kinds: kinds, limit: 120)
+
+        let towerFields = visibleAirports
+            .filter { $0.kind == .large || $0.kind == .medium }
+            .map(\.ident)
+        Task {
+            await weather.ensureMetars(for: towerFields)
         }
     }
 
@@ -110,21 +151,30 @@ struct MapScreen: View {
     }
 }
 
-/// Airport dot tinted by current flight category (gray when unknown).
+/// Airport dot tinted by current flight category (gray when unknown),
+/// sized by airport class.
 private struct AirportMarker: View {
     let airport: Airport
     let category: FlightCategory?
+
+    private var size: CGFloat {
+        switch airport.kind {
+        case .large: 24
+        case .medium: 20
+        case .small, .seaplane: 15
+        }
+    }
 
     var body: some View {
         ZStack {
             Circle()
                 .fill((category?.color ?? .gray).gradient)
-            Image(systemName: "airplane")
-                .font(.system(size: 10, weight: .bold))
+            Image(systemName: airport.kind == .seaplane ? "sailboat.fill" : "airplane")
+                .font(.system(size: size * 0.45, weight: .bold))
                 .foregroundStyle(.white)
-                .rotationEffect(.degrees(-45))
+                .rotationEffect(.degrees(airport.kind == .seaplane ? 0 : -45))
         }
-        .frame(width: 22, height: 22)
+        .frame(width: size, height: size)
         .shadow(radius: 2)
     }
 }

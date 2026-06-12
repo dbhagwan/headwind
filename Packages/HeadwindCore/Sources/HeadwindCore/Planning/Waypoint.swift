@@ -17,6 +17,10 @@ public struct Waypoint: Hashable, Codable, Sendable, Identifiable {
     }
 
     public init(airport: Airport) {
-        self.init(ident: airport.icao, name: airport.name, coordinate: airport.coordinate)
+        self.init(ident: airport.ident, name: airport.name, coordinate: airport.coordinate)
+    }
+
+    public init(navaid: Navaid) {
+        self.init(ident: navaid.ident, name: "\(navaid.name) \(navaid.type)", coordinate: navaid.coordinate)
     }
 }

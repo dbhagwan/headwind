@@ -18,7 +18,7 @@ struct PlannerScreen: View {
             List {
                 Section("Route") {
                     HStack {
-                        TextField("e.g. KPAO KSFO KSAC", text: $routeInput)
+                        TextField("e.g. KPAO OSI KMRY (airports & VORs)", text: $routeInput)
                             .textInputAutocapitalization(.characters)
                             .autocorrectionDisabled()
                             .font(.body.monospaced())

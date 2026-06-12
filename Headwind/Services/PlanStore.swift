@@ -43,7 +43,8 @@ final class PlanStore {
     }
 
     /// Replaces the route from a space/comma-separated string of identifiers.
-    /// - Returns: identifiers that could not be resolved to an airport.
+    /// Tokens resolve to airports or navaids (so "KPAO OSI KMRY" works).
+    /// - Returns: identifiers that could not be resolved.
     @discardableResult
     func setRoute(_ route: String, database: AirportDatabase) -> [String] {
         let idents = route
@@ -55,8 +56,8 @@ final class PlanStore {
         var unresolved: [String] = []
 
         for ident in idents {
-            if let airport = database.airport(ident: ident) {
-                resolved.append(Waypoint(airport: airport))
+            if let waypoint = database.waypoint(ident: ident) {
+                resolved.append(waypoint)
             } else {
                 unresolved.append(ident)
             }
@@ -69,7 +70,7 @@ final class PlanStore {
     }
 
     func append(airport: Airport) {
-        guard waypoints.last?.ident != airport.icao else { return }
+        guard waypoints.last?.ident != airport.ident else { return }
         waypoints.append(Waypoint(airport: airport))
     }
 

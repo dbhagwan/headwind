@@ -9,7 +9,7 @@ struct AirportDetailScreen: View {
 
     @State private var addedToRoute = false
 
-    private var metar: Metar? { weather.metar(for: airport.icao) }
+    private var metar: Metar? { weather.metar(for: airport.ident) }
 
     var body: some View {
         List {
@@ -22,6 +22,12 @@ struct AirportDetailScreen: View {
             Section("Weather") {
                 if let metar {
                     MetarSummaryRows(metar: metar)
+                    if let temp = metar.temperatureC, let altim = metar.altimeterInHg {
+                        LabeledContent("Density altitude") {
+                            Text("\(Int(DensityAltitude.densityAltitudeFt(elevationFt: Double(airport.elevationFt), altimeterInHg: altim, temperatureC: temp).rounded()).formatted()) ft")
+                                .monospacedDigit()
+                        }
+                    }
                     if let raw = metar.rawText {
                         Text(raw)
                             .font(.caption.monospaced())
@@ -34,7 +40,7 @@ struct AirportDetailScreen: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                if let taf = weather.taf(for: airport.icao) {
+                if let taf = weather.taf(for: airport.ident) {
                     DisclosureGroup("TAF") {
                         Text(taf)
                             .font(.caption.monospaced())
@@ -65,6 +71,22 @@ struct AirportDetailScreen: View {
                 }
             }
 
+            if let metar, let dir = metar.windDirectionDeg,
+               let speed = metar.windSpeedKts, speed > 0 {
+                let ends = RunwayWindCalculator.evaluate(
+                    runways: airport.runways,
+                    windFromDegT: Double(dir),
+                    windSpeedKts: Double(speed)
+                )
+                if !ends.isEmpty {
+                    Section("Runway Winds") {
+                        ForEach(Array(ends.enumerated()), id: \.element.id) { index, end in
+                            RunwayWindRow(end: end, isBest: index == 0)
+                        }
+                    }
+                }
+            }
+
             if !airport.frequencies.isEmpty {
                 Section("Frequencies") {
                     ForEach(airport.frequencies) { freq in
@@ -89,11 +111,11 @@ struct AirportDetailScreen: View {
                 .disabled(addedToRoute)
             }
         }
-        .navigationTitle(airport.icao)
+        .navigationTitle(airport.ident)
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            await weather.refreshMetars(for: [airport.icao])
-            await weather.refreshTAF(for: airport.icao)
+            await weather.refreshMetars(for: [airport.ident])
+            await weather.refreshTAF(for: airport.ident)
         }
     }
 
@@ -107,11 +129,56 @@ struct AirportDetailScreen: View {
                     FlightCategoryBadge(category: category)
                 }
             }
-            Text("\(airport.city), \(airport.state)")
+            Text("\(airport.city.isEmpty ? airport.state : "\(airport.city), \(airport.state)") · \(kindLabel)")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
         .padding()
+    }
+
+    private var kindLabel: String {
+        switch airport.kind {
+        case .large: "Large airport"
+        case .medium: "Towered/regional"
+        case .small: "GA field"
+        case .seaplane: "Seaplane base"
+        }
+    }
+}
+
+private struct RunwayWindRow: View {
+    let end: RunwayEndWind
+    let isBest: Bool
+
+    var body: some View {
+        HStack {
+            Text("Rwy \(end.endIdent)")
+                .font(.subheadline.weight(isBest ? .bold : .regular))
+                .monospaced()
+            if isBest {
+                Image(systemName: "star.fill")
+                    .font(.caption)
+                    .foregroundStyle(.yellow)
+            }
+            Spacer()
+            Text(headwindText)
+                .foregroundStyle(end.headwindKts >= 0 ? .green : .red)
+            Text(crosswindText)
+                .foregroundStyle(.secondary)
+        }
+        .font(.subheadline)
+        .monospacedDigit()
+    }
+
+    private var headwindText: String {
+        let value = Int(abs(end.headwindKts).rounded())
+        return end.headwindKts >= 0 ? "↓\(value) kt" : "↑\(value) kt tail"
+    }
+
+    private var crosswindText: String {
+        let value = Int(abs(end.crosswindKts).rounded())
+        guard value > 0 else { return "no x-wind" }
+        return "\(end.crosswindKts > 0 ? "→" : "←")\(value) kt x-wind"
     }
 }
 

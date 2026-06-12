@@ -10,12 +10,20 @@
 - Checklists, SwiftData logbook
 - HeadwindCore tested in Linux CI
 
-## v0.2 — Real data at scale
-- FAA NASR / OurAirports import pipeline (all US airports, runways, freqs)
-- On-device SQLite/GRDB airport database with incremental updates
+## v0.2 — Real data at scale ✅ (this release)
+- FAA NASR / OurAirports import pipeline (all open US airports, runways with
+  true headings, frequencies, navaids) — `scripts/build-airport-db.py`
+- Async-loaded in-memory directory; zoom-aware map layering
+- Navaids as route waypoints (VOR/NDB idents resolve in the planner)
+- Winds aloft: FB product fetch + full decoder, region viewer
+- Density altitude and per-runway head/crosswind advisor on airport pages
+- Multiple aircraft W&B profiles
+
+## v0.2.x — Data depth (next)
+- On-device SQLite/GRDB store with incremental NASR cycle updates
 - Magnetic variation model (WMM) for magnetic courses/headings
-- NOTAMs via FAA NOTAM API
-- Winds aloft (NOAA GFS) per leg instead of single wind input
+- NOTAMs via FAA NOTAM API (requires API key provisioning)
+- Per-leg winds interpolation from the FB grid into the planner
 
 ## v0.3 — Charts
 - FAA VFR sectional/TAC raster tiles as MapKit overlay (offline tile cache)

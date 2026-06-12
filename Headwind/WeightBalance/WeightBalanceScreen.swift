@@ -32,7 +32,16 @@ struct WeightBalanceScreen: View {
                     .listRowBackground(Color.clear)
             }
 
-            Section("Loading — \(profile.name)") {
+            Section("Aircraft") {
+                Picker("Profile", selection: $profile) {
+                    ForEach(SampleAircraft.all) { aircraft in
+                        Text(aircraft.name).tag(aircraft)
+                    }
+                }
+                LabeledContent("Max takeoff", value: "\(Int(profile.maxTakeoffWeightLb)) lb")
+            }
+
+            Section("Loading") {
                 ForEach(profile.stations) { station in
                     StationSlider(
                         station: station,
@@ -42,13 +51,18 @@ struct WeightBalanceScreen: View {
             }
 
             Section {
-                Text("Sample profile for demonstration. Always compute weight and balance from your aircraft's POH data.")
+                Text("Sample profiles for demonstration. Always compute weight and balance from your aircraft's POH data.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
         .navigationTitle("Weight & Balance")
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: profile) {
+            stationWeights = Dictionary(
+                uniqueKeysWithValues: profile.stations.map { ($0.name, $0.defaultWeightLb) }
+            )
+        }
     }
 
     private func binding(for station: WBStation) -> Binding<Double> {
