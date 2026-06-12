@@ -18,6 +18,18 @@ Apple's newest platform technologies:
 > for planning and educational use. The pilot in command is solely responsible
 > for the safety of each flight.
 
+## Screenshots
+
+Captured automatically in CI on the iOS 26 simulator (`.github/workflows/screenshots.yml`):
+
+| Moving map | Planner | Weather (live) |
+| --- | --- | --- |
+| ![Map](docs/screenshots/map.png) | ![Plan](docs/screenshots/plan.png) | ![Weather](docs/screenshots/weather.png) |
+
+| Logbook | Airport search | Tools |
+| --- | --- | --- |
+| ![Logbook](docs/screenshots/logbook.png) | ![Search](docs/screenshots/search.png) | ![More](docs/screenshots/more.png) |
+
 ## Features (v0.1)
 
 | Area | What works today |
