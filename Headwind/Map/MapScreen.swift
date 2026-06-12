@@ -65,6 +65,9 @@ struct MapScreen: View {
             location.start()
             await airports.load()
             updateVisibleAirports()
+            if DemoData.isEnabled && plan.waypoints.count >= 2 {
+                cameraCommand = .fitRoute(plan.waypoints.map(\.coordinate))
+            }
             await tfrService.refresh()
         }
     }

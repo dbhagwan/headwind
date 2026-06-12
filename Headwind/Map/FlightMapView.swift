@@ -38,7 +38,10 @@ struct FlightMapView: UIViewRepresentable {
         map.showsCompass = true
         map.isPitchEnabled = false
         map.pointOfInterestFilter = .excludingAll
-        map.setUserTrackingMode(.follow, animated: false)
+        // Screenshot/demo launches frame the route instead of chasing GPS.
+        if !DemoData.isEnabled {
+            map.setUserTrackingMode(.follow, animated: false)
+        }
         return map
     }
 
@@ -221,28 +224,66 @@ struct FlightMapView: UIViewRepresentable {
 
 /// MKTileOverlay that serves FAA chart tiles through the disk cache,
 /// so anything browsed (or prefetched) keeps working offline.
+///
+/// The FAA raster caches are cooked to z12; past that we over-zoom by
+/// cropping and upscaling the z12 ancestor so the chart never vanishes
+/// when the pilot zooms to pattern altitude.
 final class CachingTileOverlay: MKTileOverlay {
+    static let nativeMaxZ = 12
+
     let layer: ChartLayer
 
     init(layer: ChartLayer) {
         self.layer = layer
         super.init(urlTemplate: nil)
         minimumZ = 4
-        maximumZ = 12
+        maximumZ = 16
         canReplaceMapContent = false
         tileSize = CGSize(width: 256, height: 256)
     }
 
     override func loadTile(at path: MKTileOverlayPath, result: @escaping (Data?, Error?) -> Void) {
-        let tile = TileID(z: path.z, x: path.x, y: path.y)
         let layer = self.layer
         Task {
             do {
-                result(try await ChartTileCache.shared.tile(layer: layer, tile), nil)
+                if path.z <= Self.nativeMaxZ {
+                    let tile = TileID(z: path.z, x: path.x, y: path.y)
+                    result(try await ChartTileCache.shared.tile(layer: layer, tile), nil)
+                } else {
+                    let factor = 1 << (path.z - Self.nativeMaxZ)
+                    let ancestor = TileID(z: Self.nativeMaxZ, x: path.x / factor, y: path.y / factor)
+                    let data = try await ChartTileCache.shared.tile(layer: layer, ancestor)
+                    result(Self.overzoom(data, x: path.x, y: path.y, factor: factor), nil)
+                }
             } catch {
                 result(nil, error)
             }
         }
+    }
+
+    /// Crops the requested quadrant out of an ancestor tile and scales it
+    /// up to a full 256×256 tile.
+    private static func overzoom(_ ancestorData: Data, x: Int, y: Int, factor: Int) -> Data? {
+        guard let image = UIImage(data: ancestorData) else { return nil }
+        let side = 256.0 / CGFloat(factor)
+        let originX = CGFloat(x % factor) * side
+        let originY = CGFloat(y % factor) * side
+        let scale = 256.0 / side
+
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let rendered = UIGraphicsImageRenderer(
+            size: CGSize(width: 256, height: 256), format: format
+        ).image { ctx in
+            ctx.cgContext.interpolationQuality = .high
+            image.draw(in: CGRect(
+                x: -originX * scale,
+                y: -originY * scale,
+                width: 256 * scale,
+                height: 256 * scale
+            ))
+        }
+        return rendered.pngData()
     }
 }
 
