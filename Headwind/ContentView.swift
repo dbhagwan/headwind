@@ -62,4 +62,5 @@ struct ContentView: View {
         .environment(LocationService())
         .environment(BriefingService())
         .environment(TFRService())
+        .environment(AirspaceService())
 }

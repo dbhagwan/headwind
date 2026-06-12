@@ -27,6 +27,7 @@ struct FlightMapView: UIViewRepresentable {
     var showsImagery: Bool
     var tfrs: [TFR]
     var showsTFRs: Bool
+    var airspaces: [AirspaceVolume]
     var cameraCommand: MapCameraCommand?
     var onRegionChange: (MKCoordinateRegion) -> Void
     var onSelectAirport: (Airport) -> Void
@@ -52,6 +53,7 @@ struct FlightMapView: UIViewRepresentable {
         c.syncChartLayer(map)
         c.syncRoute(map)
         c.syncTFRs(map)
+        c.syncAirspace(map)
         c.syncAirports(map)
         c.runCameraCommand(map)
     }
@@ -66,6 +68,9 @@ struct FlightMapView: UIViewRepresentable {
         private var routeCoords: [Coordinate] = []
         private var tfrOverlayIDs: Set<String> = []
         private var tfrOverlays: [MKPolygon] = []
+        private var airspaceOverlayIDs: Set<String> = []
+        private var airspaceOverlays: [MKPolygon] = []
+        private var airspaceClassByOverlay: [ObjectIdentifier: AirspaceClass] = [:]
         private var annotations: [String: AirportAnnotation] = [:]
         private var lastCommandID: UUID?
 
@@ -76,7 +81,15 @@ struct FlightMapView: UIViewRepresentable {
         // MARK: Sync
 
         func syncMapType(_ map: MKMapView) {
-            let wanted: MKMapType = parent.showsImagery ? .hybrid : .standard
+            // The clean aeronautical mode sits on the muted base map;
+            // raster charts read better over the standard one.
+            let wanted: MKMapType = if parent.showsImagery {
+                .hybrid
+            } else if parent.chartLayer == .none {
+                .mutedStandard
+            } else {
+                .standard
+            }
             if map.mapType != wanted { map.mapType = wanted }
         }
 
@@ -122,6 +135,24 @@ struct FlightMapView: UIViewRepresentable {
             }
             map.addOverlays(tfrOverlays, level: .aboveLabels)
             tfrOverlayIDs = wantedIDs
+        }
+
+        func syncAirspace(_ map: MKMapView) {
+            let wantedIDs = Set(parent.airspaces.map(\.id))
+            guard wantedIDs != airspaceOverlayIDs else { return }
+
+            map.removeOverlays(airspaceOverlays)
+            airspaceClassByOverlay.removeAll()
+            airspaceOverlays = parent.airspaces.flatMap { volume in
+                volume.polygons.map { ring -> MKPolygon in
+                    let coords = ring.map(\.cl)
+                    let polygon = MKPolygon(coordinates: coords, count: coords.count)
+                    airspaceClassByOverlay[ObjectIdentifier(polygon)] = volume.airspaceClass
+                    return polygon
+                }
+            }
+            map.addOverlays(airspaceOverlays, level: .aboveRoads)
+            airspaceOverlayIDs = wantedIDs
         }
 
         func syncAirports(_ map: MKMapView) {
@@ -194,9 +225,29 @@ struct FlightMapView: UIViewRepresentable {
                 return renderer
             case let polygon as MKPolygon:
                 let renderer = MKPolygonRenderer(polygon: polygon)
-                renderer.fillColor = UIColor.systemRed.withAlphaComponent(0.18)
-                renderer.strokeColor = UIColor.systemRed.withAlphaComponent(0.8)
-                renderer.lineWidth = 2
+                if let airspaceClass = airspaceClassByOverlay[ObjectIdentifier(polygon)] {
+                    // Chart-convention colors: B solid blue, C solid magenta,
+                    // D dashed blue. Light fills keep the base map readable.
+                    switch airspaceClass {
+                    case .b:
+                        renderer.strokeColor = UIColor.systemBlue.withAlphaComponent(0.8)
+                        renderer.fillColor = UIColor.systemBlue.withAlphaComponent(0.05)
+                        renderer.lineWidth = 1.8
+                    case .c:
+                        renderer.strokeColor = UIColor.systemPink.withAlphaComponent(0.75)
+                        renderer.fillColor = UIColor.systemPink.withAlphaComponent(0.05)
+                        renderer.lineWidth = 1.6
+                    case .d:
+                        renderer.strokeColor = UIColor.systemBlue.withAlphaComponent(0.65)
+                        renderer.fillColor = UIColor.clear
+                        renderer.lineWidth = 1.4
+                        renderer.lineDashPattern = [6, 4]
+                    }
+                } else {
+                    renderer.fillColor = UIColor.systemRed.withAlphaComponent(0.18)
+                    renderer.strokeColor = UIColor.systemRed.withAlphaComponent(0.8)
+                    renderer.lineWidth = 2
+                }
                 return renderer
             default:
                 return MKOverlayRenderer(overlay: overlay)

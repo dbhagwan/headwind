@@ -13,8 +13,10 @@ enum DemoData {
     static func seedIfNeeded(plan: PlanStore, airports: AirportStore, context: ModelContext) {
         guard isEnabled else { return }
 
-        // Screenshots should show the sectional chart layer.
-        UserDefaults.standard.set(ChartLayer.sectional.rawValue, forKey: "map.chartLayer")
+        // Screenshots showcase the clean aeronautical mode (vector airspace
+        // on the muted base map); sectionals stay one tap away in the menu.
+        UserDefaults.standard.set(ChartLayer.none.rawValue, forKey: "map.chartLayer")
+        UserDefaults.standard.set(true, forKey: "map.showsAirspace")
 
         if plan.waypoints.isEmpty {
             plan.setRoute("KPAO KSFO KOAK KSJC", database: airports.database)

@@ -10,9 +10,11 @@ struct MapScreen: View {
     @Environment(PlanStore.self) private var plan
     @Environment(WeatherService.self) private var weather
     @Environment(TFRService.self) private var tfrService
+    @Environment(AirspaceService.self) private var airspaceService
 
     @AppStorage("map.chartLayer") private var chartLayerRaw = ChartLayer.none.rawValue
     @AppStorage("map.showsTFRs") private var showsTFRs = true
+    @AppStorage("map.showsAirspace") private var showsAirspace = true
 
     @State private var showsImagery = false
     @State private var visibleRegion: MKCoordinateRegion?
@@ -34,10 +36,13 @@ struct MapScreen: View {
             showsImagery: showsImagery,
             tfrs: tfrService.tfrs,
             showsTFRs: showsTFRs,
+            airspaces: chartLayer == .none && showsAirspace ? airspaceService.all : [],
             cameraCommand: cameraCommand,
             onRegionChange: { region in
                 visibleRegion = region
                 updateVisibleAirports()
+                let bounds = Self.bounds(of: region)
+                Task { await airspaceService.ensureCoverage(of: bounds) }
             },
             onSelectAirport: { selectedAirport = $0 }
         )
@@ -85,21 +90,19 @@ struct MapScreen: View {
 
         let span = max(region.span.latitudeDelta, region.span.longitudeDelta)
         let kinds: Set<AirportKind>
-        if span > 6 {
-            kinds = [.large]
+        if span > 6 || chartLayer != .none {
+            // Raster charts already depict small fields; fewer markers
+            // keeps the chart legible.
+            kinds = span > 6 ? [.large] : [.large, .medium]
         } else if span > 2 {
             kinds = [.large, .medium]
         } else {
             kinds = Set(AirportKind.allCases)
         }
 
-        let bounds = GeoBounds(
-            minLat: region.center.latitude - region.span.latitudeDelta / 2,
-            maxLat: region.center.latitude + region.span.latitudeDelta / 2,
-            minLon: region.center.longitude - region.span.longitudeDelta / 2,
-            maxLon: region.center.longitude + region.span.longitudeDelta / 2
+        visibleAirports = airports.database.airports(
+            within: Self.bounds(of: region), kinds: kinds, limit: 120
         )
-        visibleAirports = airports.database.airports(within: bounds, kinds: kinds, limit: 120)
 
         let towerFields = visibleAirports
             .filter { $0.kind == .large || $0.kind == .medium }
@@ -107,6 +110,15 @@ struct MapScreen: View {
         Task {
             await weather.ensureMetars(for: towerFields)
         }
+    }
+
+    private static func bounds(of region: MKCoordinateRegion) -> GeoBounds {
+        GeoBounds(
+            minLat: region.center.latitude - region.span.latitudeDelta / 2,
+            maxLat: region.center.latitude + region.span.latitudeDelta / 2,
+            minLon: region.center.longitude - region.span.longitudeDelta / 2,
+            maxLon: region.center.longitude + region.span.longitudeDelta / 2
+        )
     }
 
     private var mapActions: some View {
@@ -119,6 +131,9 @@ struct MapScreen: View {
                         }
                     }
                     Toggle("Show TFRs", isOn: $showsTFRs)
+                    if chartLayer == .none {
+                        Toggle("Airspace B/C/D", isOn: $showsAirspace)
+                    }
                     Toggle("Satellite", isOn: $showsImagery)
                     if chartLayer != .none {
                         Button {
