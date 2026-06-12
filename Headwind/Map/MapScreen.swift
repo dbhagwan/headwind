@@ -65,8 +65,14 @@ struct MapScreen: View {
             location.start()
             await airports.load()
             updateVisibleAirports()
-            if DemoData.isEnabled && plan.waypoints.count >= 2 {
-                cameraCommand = .fitRoute(plan.waypoints.map(\.coordinate))
+            if DemoData.isEnabled {
+                // Demo seeding runs in a sibling task; wait for the route.
+                for _ in 0..<25 where plan.waypoints.count < 2 {
+                    try? await Task.sleep(for: .milliseconds(200))
+                }
+                if plan.waypoints.count >= 2 {
+                    cameraCommand = .fitRoute(plan.waypoints.map(\.coordinate))
+                }
             }
             await tfrService.refresh()
         }
