@@ -61,4 +61,5 @@ struct ContentView: View {
         .environment(PlanStore())
         .environment(LocationService())
         .environment(BriefingService())
+        .environment(TFRService())
 }

@@ -35,6 +35,8 @@ Captured automatically in CI on the iOS 26 simulator (`.github/workflows/screens
 | Area | What works today |
 | --- | --- |
 | **Airports & navaids** | Full US directory from the FAA (via OurAirports): 16,800+ open airports — every GA field, seaplane base, and major — plus 2,800+ VORs/NDBs. Runways with true headings, frequencies, search, nearest-airport ranking |
+| **Charts** | FAA VFR Sectional, VFR Terminal, IFR Low, and IFR High raster layers streamed from the FAA's public tile service, with disk caching and offline area downloads |
+| **Airspace** | Live TFRs from tfr.faa.gov drawn as restricted-area polygons on the map, with a grouped list view |
 | **Moving map** | MapKit map with ownship position, live GS/TRK/ALT glass instrument strip, zoom-aware airport layers colored by live flight category, active route overlay, imagery toggle |
 | **Weather** | Live METARs and TAFs from the free aviationweather.gov API, VFR/MVFR/IFR/LIFR categorization, favorite stations, winds-aloft (FB) viewer, density altitude, per-runway head/crosswind advisor |
 | **Flight planning** | Routes mixing airports and navaids ("KPAO OSI KMRY"), great-circle distance/course per leg, wind-triangle headings and ground speeds, ETE and fuel burn totals, drag-to-reorder, persisted across launches |

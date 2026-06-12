@@ -2,62 +2,55 @@ import SwiftUI
 import MapKit
 import HeadwindCore
 
-/// The moving map: ownship position, airports filtered by zoom level,
-/// the active route, and a Liquid Glass instrument strip.
+/// The moving map: FAA chart layers, TFRs, ownship, route, and airports,
+/// with the Liquid Glass instrument strip and controls layered above.
 struct MapScreen: View {
     @Environment(AirportStore.self) private var airports
     @Environment(LocationService.self) private var location
     @Environment(PlanStore.self) private var plan
     @Environment(WeatherService.self) private var weather
+    @Environment(TFRService.self) private var tfrService
 
-    @State private var position: MapCameraPosition = .userLocation(fallback: .automatic)
+    @AppStorage("map.chartLayer") private var chartLayerRaw = ChartLayer.none.rawValue
+    @AppStorage("map.showsTFRs") private var showsTFRs = true
+
+    @State private var showsImagery = false
     @State private var visibleRegion: MKCoordinateRegion?
     @State private var visibleAirports: [Airport] = []
-    @State private var showsImagery = false
     @State private var selectedAirport: Airport?
+    @State private var cameraCommand: MapCameraCommand?
+    @State private var showsOfflineSheet = false
+
+    private var chartLayer: ChartLayer {
+        ChartLayer(rawValue: chartLayerRaw) ?? .none
+    }
 
     var body: some View {
-        Map(position: $position) {
-            UserAnnotation()
-
-            ForEach(visibleAirports) { airport in
-                Annotation(airport.ident, coordinate: airport.coordinate.cl) {
-                    AirportMarker(
-                        airport: airport,
-                        category: weather.metar(for: airport.ident)?.flightCategory
-                    )
-                    .onTapGesture { selectedAirport = airport }
-                }
-                .annotationTitles(.automatic)
-            }
-
-            if plan.waypoints.count >= 2 {
-                MapPolyline(coordinates: plan.waypoints.map(\.coordinate.cl))
-                    .stroke(
-                        .purple.opacity(0.85),
-                        style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round)
-                    )
-            }
-        }
-        .mapStyle(showsImagery ? .hybrid(elevation: .realistic) : .standard(elevation: .realistic))
-        .mapControls {
-            MapUserLocationButton()
-            MapCompass()
-            MapScaleView()
-        }
-        .onMapCameraChange(frequency: .onEnd) { context in
-            visibleRegion = context.region
-            updateVisibleAirports()
+        FlightMapView(
+            airports: visibleAirports,
+            categories: weather.metars.mapValues(\.flightCategory),
+            route: plan.waypoints.map(\.coordinate),
+            chartLayer: chartLayer,
+            showsImagery: showsImagery,
+            tfrs: tfrService.tfrs,
+            showsTFRs: showsTFRs,
+            cameraCommand: cameraCommand,
+            onRegionChange: { region in
+                visibleRegion = region
+                updateVisibleAirports()
+            },
+            onSelectAirport: { selectedAirport = $0 }
+        )
+        .ignoresSafeArea()
+        .overlay(alignment: .top) {
+            InstrumentStrip()
+                .padding(.horizontal)
+                .padding(.top, 4)
         }
         .overlay(alignment: .bottomTrailing) {
             mapActions
                 .padding(.trailing, 12)
                 .padding(.bottom, 24)
-        }
-        .safeAreaInset(edge: .top) {
-            InstrumentStrip()
-                .padding(.horizontal)
-                .padding(.top, 4)
         }
         .sheet(item: $selectedAirport) { airport in
             NavigationStack {
@@ -65,13 +58,14 @@ struct MapScreen: View {
             }
             .presentationDetents([.medium, .large])
         }
+        .sheet(isPresented: $showsOfflineSheet) {
+            OfflineChartsSheet(layer: chartLayer, region: visibleRegion)
+        }
         .task {
             location.start()
             await airports.load()
             updateVisibleAirports()
-        }
-        .onChange(of: airports.isLoading) {
-            updateVisibleAirports()
+            await tfrService.refresh()
         }
     }
 
@@ -109,10 +103,32 @@ struct MapScreen: View {
     private var mapActions: some View {
         GlassEffectContainer(spacing: 12) {
             VStack(spacing: 12) {
-                Button {
-                    showsImagery.toggle()
+                Menu {
+                    Picker("Chart", selection: $chartLayerRaw) {
+                        ForEach(ChartLayer.allCases) { layer in
+                            Text(layer.title).tag(layer.rawValue)
+                        }
+                    }
+                    Toggle("Show TFRs", isOn: $showsTFRs)
+                    Toggle("Satellite", isOn: $showsImagery)
+                    if chartLayer != .none {
+                        Button {
+                            showsOfflineSheet = true
+                        } label: {
+                            Label("Offline Charts…", systemImage: "arrow.down.circle")
+                        }
+                    }
                 } label: {
-                    Image(systemName: showsImagery ? "globe.americas.fill" : "globe.americas")
+                    Image(systemName: chartLayer == .none ? "square.3.layers.3d" : "square.3.layers.3d.top.filled")
+                        .font(.title3)
+                        .frame(width: 44, height: 44)
+                }
+                .glassEffect(.regular.interactive(), in: .circle)
+
+                Button {
+                    cameraCommand = .followUser()
+                } label: {
+                    Image(systemName: "location.fill")
                         .font(.title3)
                         .frame(width: 44, height: 44)
                 }
@@ -120,7 +136,7 @@ struct MapScreen: View {
 
                 if plan.waypoints.count >= 2 {
                     Button {
-                        position = .region(routeRegion(for: plan.waypoints))
+                        cameraCommand = .fitRoute(plan.waypoints.map(\.coordinate))
                     } label: {
                         Image(systemName: "point.topleft.down.to.point.bottomright.curvepath")
                             .font(.title3)
@@ -130,52 +146,6 @@ struct MapScreen: View {
                 }
             }
         }
-    }
-
-    private func routeRegion(for waypoints: [Waypoint]) -> MKCoordinateRegion {
-        let lats = waypoints.map(\.coordinate.latitude)
-        let lons = waypoints.map(\.coordinate.longitude)
-        guard let minLat = lats.min(), let maxLat = lats.max(),
-              let minLon = lons.min(), let maxLon = lons.max() else {
-            return MKCoordinateRegion(.world)
-        }
-        let center = CLLocationCoordinate2D(
-            latitude: (minLat + maxLat) / 2,
-            longitude: (minLon + maxLon) / 2
-        )
-        let span = MKCoordinateSpan(
-            latitudeDelta: max((maxLat - minLat) * 1.4, 0.5),
-            longitudeDelta: max((maxLon - minLon) * 1.4, 0.5)
-        )
-        return MKCoordinateRegion(center: center, span: span)
-    }
-}
-
-/// Airport dot tinted by current flight category (gray when unknown),
-/// sized by airport class.
-private struct AirportMarker: View {
-    let airport: Airport
-    let category: FlightCategory?
-
-    private var size: CGFloat {
-        switch airport.kind {
-        case .large: 24
-        case .medium: 20
-        case .small, .seaplane: 15
-        }
-    }
-
-    var body: some View {
-        ZStack {
-            Circle()
-                .fill((category?.color ?? .gray).gradient)
-            Image(systemName: airport.kind == .seaplane ? "sailboat.fill" : "airplane")
-                .font(.system(size: size * 0.45, weight: .bold))
-                .foregroundStyle(.white)
-                .rotationEffect(.degrees(airport.kind == .seaplane ? 0 : -45))
-        }
-        .frame(width: size, height: size)
-        .shadow(radius: 2)
     }
 }
 

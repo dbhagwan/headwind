@@ -13,6 +13,9 @@ enum DemoData {
     static func seedIfNeeded(plan: PlanStore, airports: AirportStore, context: ModelContext) {
         guard isEnabled else { return }
 
+        // Screenshots should show the sectional chart layer.
+        UserDefaults.standard.set(ChartLayer.sectional.rawValue, forKey: "map.chartLayer")
+
         if plan.waypoints.isEmpty {
             plan.setRoute("KPAO KSFO KOAK KSJC", database: airports.database)
             plan.performance = CruisePerformance(

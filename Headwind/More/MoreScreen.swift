@@ -21,6 +21,11 @@ struct MoreScreen: View {
                         Label("Winds Aloft", systemImage: "wind")
                     }
                     NavigationLink {
+                        AirspaceScreen()
+                    } label: {
+                        Label("Airspace & TFRs", systemImage: "exclamationmark.triangle")
+                    }
+                    NavigationLink {
                         BriefingScreen()
                     } label: {
                         Label("AI Briefing", systemImage: "sparkles")

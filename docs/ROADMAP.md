@@ -25,11 +25,15 @@
 - NOTAMs via FAA NOTAM API (requires API key provisioning)
 - Per-leg winds interpolation from the FB grid into the planner
 
-## v0.3 — Charts
-- FAA VFR sectional/TAC raster tiles as MapKit overlay (offline tile cache)
-- IFR low/high enroute charts
+## v0.3 — Charts & airspace ✅ (this release)
+- FAA VFR sectional/terminal + IFR low/high raster layers (FAA public
+  tile service) with disk cache and offline area downloads
+- Live TFR polygons on the map + grouped airspace list (tfr.faa.gov)
+
+## v0.3.x — Charts depth (next)
 - Geo-referenced approach plates (FAA d-TPP), organized by airport
 - Document binder (POH, certificates) with iCloud sync
+- Chart currency tracking against the 56-day chart cycle
 
 ## v0.4 — In-flight
 - ADS-B In traffic & FIS-B weather via GDL90 over UDP (Stratux/Sentry/Stratus)
