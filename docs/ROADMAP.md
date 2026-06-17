@@ -41,15 +41,16 @@ a pilot could misread.
 Goal: a stranger downloads it and plans a VFR flight safely.
 
 **M1 Hardening (engineering, ~1–2 wks)**
-- Data-cycle automation: scheduled GitHub Action regenerates airport and
-  plate bundles each 28-day cycle and opens a PR; in-app effective-date
-  staleness warning; remote plate-index fallback when the bundle expires
-  (current plates cycle 2606 expires 07/09/26)
-- `PrivacyInfo.xcprivacy` privacy manifest (required for submission)
+- ✅ Data-cycle automation: `data-refresh.yml` regenerates airport and plate
+  bundles each cycle and opens a PR; AIRAC cycle math + currency in
+  HeadwindCore; in-app staleness badge/banner; self-healing remote
+  plate-index fallback when the bundle expires (cycle 2606 → 07/09/26)
+- ✅ `PrivacyInfo.xcprivacy` privacy manifest
+- ✅ CI triggers cover `main`
 - First-launch gate: not-for-navigation acknowledgement, location
   pre-prompt, short feature intro
 - Explicit °T labels on every heading/course until WMM lands
-- Offline/error audit on every screen; CI triggers moved to `main`
+- Offline/error audit on every screen
 
 **M2 Device reality & beta (~3–4 wks calendar)**
 - Apple Developer account; real iPhone/iPad profiling (GPS in motion,

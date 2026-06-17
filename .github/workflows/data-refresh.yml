@@ -1,0 +1,66 @@
+name: Data Refresh
+
+# Regenerates the bundled aeronautical data each FAA cycle and opens a PR.
+# Airports/navaids (OurAirports, FAA-sourced) and approach plates (d-TPP)
+# both ride the 28-day cycle; this keeps the bundle from silently expiring.
+
+on:
+  schedule:
+    - cron: "0 12 * * 1" # Mondays 12:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Regenerate airport & navaid database
+        run: |
+          set -euo pipefail
+          base="https://davidmegginson.github.io/ourairports-data"
+          for f in airports runways airport-frequencies navaids; do
+            curl -sLfo "/tmp/$f.csv" "$base/$f.csv"
+          done
+          python3 scripts/build-airport-db.py /tmp
+
+      - name: Regenerate approach-plate index
+        run: |
+          set -euo pipefail
+          cycle="$(python3 scripts/current-dtpp-cycle.py)"
+          echo "Current d-TPP cycle: $cycle"
+          curl -sLfo /tmp/d-tpp_Metafile.xml \
+            "https://aeronav.faa.gov/d-tpp/$cycle/xml_data/d-tpp_Metafile.xml"
+          python3 scripts/build-plates-index.py /tmp/d-tpp_Metafile.xml
+
+      - name: Open PR if data changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- Headwind/Resources; then
+            echo "Aeronautical data already current — nothing to do."
+            exit 0
+          fi
+          cycle="$(python3 -c "import json;print(json.load(open('Headwind/Resources/us-plates.json'))['cycle'])")"
+          branch="data/refresh-${cycle}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add Headwind/Resources/us-airports.json Headwind/Resources/us-navaids.json Headwind/Resources/us-plates.json
+          git commit -m "Data refresh: d-TPP cycle ${cycle}"
+          git push -f origin "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "Data refresh: d-TPP cycle ${cycle}" \
+            --body "Automated regeneration of bundled airports, navaids, and approach plates for FAA cycle \`${cycle}\`.
+
+          🤖 Generated with [Claude Code](https://claude.com/claude-code)" \
+            || gh pr edit "$branch" --body "Updated for cycle ${cycle}."

@@ -46,11 +46,65 @@ public struct ApproachPlate: Codable, Hashable, Sendable, Identifiable {
 /// The bundled d-TPP index: cycle identifier plus plates per airport.
 public struct PlateIndex: Codable, Sendable {
     public let cycle: String
+    /// Validity window of this index; nil for older bundles without dates.
+    public let effectiveDate: Date?
+    public let expirationDate: Date?
     public let airports: [String: [ApproachPlate]]
 
-    public init(cycle: String, airports: [String: [ApproachPlate]]) {
+    public init(
+        cycle: String,
+        effectiveDate: Date? = nil,
+        expirationDate: Date? = nil,
+        airports: [String: [ApproachPlate]]
+    ) {
         self.cycle = cycle
+        self.effectiveDate = effectiveDate
+        self.expirationDate = expirationDate
         self.airports = airports
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case cycle
+        case effectiveDate = "effective"
+        case expirationDate = "expires"
+        case airports
+    }
+
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        cycle = try c.decode(String.self, forKey: .cycle)
+        airports = try c.decode([String: [ApproachPlate]].self, forKey: .airports)
+        effectiveDate = (try? c.decodeIfPresent(String.self, forKey: .effectiveDate))
+            .flatMap { $0.flatMap(Self.dateFormatter.date(from:)) }
+        expirationDate = (try? c.decodeIfPresent(String.self, forKey: .expirationDate))
+            .flatMap { $0.flatMap(Self.dateFormatter.date(from:)) }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(cycle, forKey: .cycle)
+        try c.encode(airports, forKey: .airports)
+        try c.encodeIfPresent(effectiveDate.map(Self.dateFormatter.string(from:)), forKey: .effectiveDate)
+        try c.encodeIfPresent(expirationDate.map(Self.dateFormatter.string(from:)), forKey: .expirationDate)
+    }
+
+    /// Validity window for this index, when dates are present.
+    public var currency: DataCurrency? {
+        guard let effectiveDate, let expirationDate, !cycle.isEmpty else { return nil }
+        return DataCurrency(
+            cycleLabel: cycle,
+            effectiveDate: effectiveDate,
+            expirationDate: expirationDate
+        )
     }
 
     public func plates(for ident: String) -> [ApproachPlate] {

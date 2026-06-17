@@ -8,16 +8,31 @@ Output: Headwind/Resources/us-plates.json
 Usage: python3 scripts/build-plates-index.py /path/to/d-tpp_Metafile.xml
 """
 
+import datetime
 import json
+import re
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
+
+
+def parse_edate(raw):
+    """'0901Z  06/11/26' -> '2026-06-11' (ISO date), or None."""
+    if not raw:
+        return None
+    m = re.search(r"(\d{2})/(\d{2})/(\d{2})", raw)
+    if not m:
+        return None
+    month, day, year = (int(x) for x in m.groups())
+    return datetime.date(2000 + year, month, day).isoformat()
 
 
 def main(metafile):
     tree = ET.parse(metafile)
     root = tree.getroot()
     cycle = root.get("Cycle", "")
+    effective = parse_edate(root.get("from_edate"))
+    expires = parse_edate(root.get("to_edate"))
 
     airports = {}
     count = 0
@@ -39,11 +54,19 @@ def main(metafile):
 
     airports = {k: v for k, v in airports.items() if v}
 
+    payload = {"cycle": cycle}
+    if effective:
+        payload["effective"] = effective
+    if expires:
+        payload["expires"] = expires
+    payload["airports"] = airports
+
     out = Path(__file__).resolve().parent.parent / "Headwind" / "Resources" / "us-plates.json"
     with open(out, "w", encoding="utf-8") as f:
-        json.dump({"cycle": cycle, "airports": airports}, f, separators=(",", ":"), ensure_ascii=False)
+        json.dump(payload, f, separators=(",", ":"), ensure_ascii=False)
 
-    print(f"cycle {cycle}: {len(airports)} airports, {count} plates, {out.stat().st_size/1e6:.1f} MB")
+    print(f"cycle {cycle} ({effective} → {expires}): "
+          f"{len(airports)} airports, {count} plates, {out.stat().st_size/1e6:.1f} MB")
 
 
 if __name__ == "__main__":

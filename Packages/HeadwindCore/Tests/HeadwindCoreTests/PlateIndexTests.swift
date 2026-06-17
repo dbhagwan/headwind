@@ -42,4 +42,22 @@ final class PlateIndexTests: XCTestCase {
         XCTAssertEqual(ApproachPlate(name: "x", code: "HOT", pdfName: "x.pdf").category, "Hot Spots")
         XCTAssertEqual(ApproachPlate(name: "x", code: "ZZZ", pdfName: "x.pdf").category, "Other")
     }
+
+    func testCurrencyDecodedWhenDatesPresent() throws {
+        let withDates = """
+        {"cycle":"2606","effective":"2026-06-11","expires":"2026-07-09","airports":{
+          "KSFO":[{"n":"AIRPORT DIAGRAM","c":"APD","p":"00375AD.PDF"}]
+        }}
+        """
+        let index = try JSONDecoder().decode(PlateIndex.self, from: Data(withDates.utf8))
+        let currency = try XCTUnwrap(index.currency)
+        XCTAssertEqual(currency.cycleLabel, "2606")
+        XCTAssertEqual(currency.effectiveDate, AiracCalendar.makeUTC(year: 2026, month: 6, day: 11))
+        XCTAssertEqual(currency.expirationDate, AiracCalendar.makeUTC(year: 2026, month: 7, day: 9))
+    }
+
+    func testCurrencyNilWhenDatesAbsent() throws {
+        let index = try JSONDecoder().decode(PlateIndex.self, from: Data(json.utf8))
+        XCTAssertNil(index.currency)
+    }
 }

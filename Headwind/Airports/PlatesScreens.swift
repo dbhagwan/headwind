@@ -10,6 +10,18 @@ struct PlatesListScreen: View {
 
     var body: some View {
         List {
+            if let status = plates.currencyStatus(), !isCurrent(status) {
+                Section {
+                    StaleDataBanner(
+                        status: status,
+                        onUpdate: { Task { await plates.refreshFromRemote() } },
+                        isUpdating: plates.isCheckingForUpdate
+                    )
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                }
+            }
+
             ForEach(plates.index.groupedPlates(for: airport.ident), id: \.category) { group in
                 Section(group.category) {
                     ForEach(group.plates) { plate in
@@ -33,6 +45,11 @@ struct PlatesListScreen: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    private func isCurrent(_ status: DataCurrency.Status) -> Bool {
+        if case .current = status { return true }
+        return false
     }
 }
 

@@ -3,7 +3,7 @@ name: Build & Screenshots
 on:
   workflow_dispatch:
   push:
-    branches: ["claude/headwind-aviation-app-eiapz2"]
+    branches: ["main", "claude/headwind-aviation-app-eiapz2"]
     paths-ignore:
       - "docs/screenshots/**"
 
