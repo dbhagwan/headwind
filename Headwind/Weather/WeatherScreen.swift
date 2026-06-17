@@ -19,7 +19,19 @@ struct WeatherScreen: View {
                 LazyVStack(spacing: 16) {
                     addStationField
 
-                    if let error = weather.lastError {
+                    if weather.isOffline {
+                        HStack(spacing: 6) {
+                            Image(systemName: "wifi.slash")
+                            if let updated = weather.lastUpdated {
+                                Text("Offline — last saved ") + Text(updated, style: .relative) + Text(" ago")
+                            } else {
+                                Text("Offline — showing last saved weather.")
+                            }
+                        }
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    } else if let error = weather.lastError {
                         Label(error, systemImage: "exclamationmark.triangle.fill")
                             .font(.footnote)
                             .foregroundStyle(.orange)
@@ -105,6 +117,19 @@ struct MetarCard: View {
                     .monospaced()
                 if let metar {
                     FlightCategoryBadge(category: metar.flightCategory)
+                    if metar.isStale() {
+                        Label {
+                            if let observed = metar.observationTime {
+                                Text(observed, style: .relative)
+                            } else {
+                                Text("old")
+                            }
+                        } icon: {
+                            Image(systemName: "clock.badge.exclamationmark")
+                        }
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.orange)
+                    }
                 }
                 Spacer()
                 Menu {

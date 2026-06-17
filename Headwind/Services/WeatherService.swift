@@ -11,15 +11,49 @@ final class WeatherService {
     private(set) var isRefreshing = false
     private(set) var lastError: String?
     private(set) var lastUpdated: Date?
+    /// True when the last refresh failed but cached observations are showing.
+    private(set) var isOffline = false
 
     private var fetchedAt: [String: Date] = [:]
     private var inFlight: Set<String> = []
+    private var didHydrate = false
 
     private let session: URLSession = {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 15
         return URLSession(configuration: config)
     }()
+
+    private struct CachedWeather: Codable {
+        var updated: Date
+        var metars: [String: Metar]
+        var tafs: [String: String]
+    }
+
+    private var cacheURL: URL {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("weather-cache.json")
+    }
+
+    /// Restores the last saved observations so the app opens with weather even
+    /// before (or without) a network refresh. Safe to call repeatedly.
+    func loadCache() {
+        guard !didHydrate else { return }
+        didHydrate = true
+        guard metars.isEmpty,
+              let data = try? Data(contentsOf: cacheURL),
+              let cached = try? JSONDecoder().decode(CachedWeather.self, from: data) else { return }
+        metars = cached.metars
+        tafs = cached.tafs
+        lastUpdated = cached.updated
+    }
+
+    private func persist() {
+        let snapshot = CachedWeather(updated: lastUpdated ?? .now, metars: metars, tafs: tafs)
+        if let data = try? JSONEncoder().encode(snapshot) {
+            try? data.write(to: cacheURL)
+        }
+    }
 
     func metar(for ident: String) -> Metar? {
         metars[ident.trimmingCharacters(in: .whitespaces).uppercased()]
@@ -59,8 +93,12 @@ final class WeatherService {
             }
             lastUpdated = now
             lastError = nil
+            isOffline = false
+            persist()
         } catch {
             lastError = "Couldn't load weather: \(error.localizedDescription)"
+            // Keep showing whatever we already have, flagged as offline.
+            isOffline = !metars.isEmpty
         }
     }
 

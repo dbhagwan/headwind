@@ -1,6 +1,6 @@
 import Foundation
 
-public struct CloudLayer: Hashable, Sendable, Decodable {
+public struct CloudLayer: Hashable, Sendable, Codable {
     /// FEW, SCT, BKN, OVC, OVX, VV, CLR, SKC, CAVOK
     public let cover: String
     /// Base in feet AGL; nil for clear skies or vertical visibility unknown.
@@ -21,13 +21,19 @@ public struct CloudLayer: Hashable, Sendable, Decodable {
         cover = (try? c.decode(String.self, forKey: .cover)) ?? "CLR"
         baseFt = try? c.decodeIfPresent(Int.self, forKey: .baseFt)
     }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(cover, forKey: .cover)
+        try c.encodeIfPresent(baseFt, forKey: .baseFt)
+    }
 }
 
 /// A decoded METAR observation.
 ///
 /// The decoder is tolerant of the aviationweather.gov JSON API's mixed types
 /// (e.g. `wdir` may be an integer or `"VRB"`, `visib` may be `10` or `"10+"`).
-public struct Metar: Hashable, Sendable, Decodable, Identifiable {
+public struct Metar: Hashable, Sendable, Codable, Identifiable {
     public var id: String { "\(stationID)-\(observationTime?.timeIntervalSince1970 ?? 0)" }
 
     public let stationID: String
@@ -160,5 +166,43 @@ public struct Metar: Hashable, Sendable, Decodable, Identifiable {
             return Double(s.replacingOccurrences(of: "+", with: ""))
         }
         return nil
+    }
+
+    /// Encodes in the same shape the API uses, so a persisted cache round-trips
+    /// cleanly back through `init(from:)`.
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(stationID, forKey: .stationID)
+        try c.encodeIfPresent(observationTime?.timeIntervalSince1970, forKey: .observationTime)
+        try c.encodeIfPresent(temperatureC, forKey: .temperatureC)
+        try c.encodeIfPresent(dewpointC, forKey: .dewpointC)
+        if windVariable {
+            try c.encode("VRB", forKey: .windDirection)
+        } else if let windDirectionDeg {
+            try c.encode(windDirectionDeg, forKey: .windDirection)
+        }
+        try c.encodeIfPresent(windSpeedKts, forKey: .windSpeedKts)
+        try c.encodeIfPresent(windGustKts, forKey: .windGustKts)
+        try c.encodeIfPresent(visibilitySM, forKey: .visibility)
+        try c.encodeIfPresent(altimeterHpa, forKey: .altimeterHpa)
+        try c.encode(clouds, forKey: .clouds)
+        try c.encodeIfPresent(rawText, forKey: .rawText)
+        try c.encodeIfPresent(stationName, forKey: .stationName)
+        try c.encodeIfPresent(latitude, forKey: .latitude)
+        try c.encodeIfPresent(longitude, forKey: .longitude)
+    }
+
+    // MARK: Freshness
+
+    /// Age of the observation; nil when the report has no timestamp.
+    public func age(asOf now: Date = .now) -> TimeInterval? {
+        observationTime.map { now.timeIntervalSince($0) }
+    }
+
+    /// True when the observation is older than `maxAge` (default 75 min — by
+    /// which point a newer hourly METAR should exist).
+    public func isStale(asOf now: Date = .now, maxAge: TimeInterval = 75 * 60) -> Bool {
+        guard let age = age(asOf: now) else { return false }
+        return age > maxAge
     }
 }

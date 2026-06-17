@@ -8,6 +8,7 @@ struct ContentView: View {
     @Environment(PlanStore.self) private var plan
     @Environment(AirportStore.self) private var airports
     @Environment(LocationService.self) private var location
+    @Environment(WeatherService.self) private var weather
     @Environment(\.modelContext) private var modelContext
 
     @State private var selection: AppTab = ContentView.initialTab()
@@ -36,6 +37,7 @@ struct ContentView: View {
         .tabViewStyle(.sidebarAdaptable)
         .task {
             location.start()
+            weather.loadCache()
             await airports.load()
             DemoData.seedIfNeeded(plan: plan, airports: airports, context: modelContext)
         }

@@ -50,7 +50,12 @@ Goal: a stranger downloads it and plans a VFR flight safely.
 - ✅ First-launch gate: 3-page intro ending in a required not-for-navigation
   acknowledgement, gating the app before any map/data/location startup
 - ✅ Planner labels courses/headings as true (°T) until WMM lands
-- Offline/error audit on every screen
+- ✅ Offline/error audit: weather persists to disk and rehydrates at launch;
+  offline banner + stale-observation badges; charts/plates already serve
+  from disk cache
+
+**M1 is engineering-complete.** Remaining 1.0 work (M2/M3) is calendar-bound:
+device profiling, the TestFlight pilot beta, and store packaging.
 
 **M2 Device reality & beta (~3–4 wks calendar)**
 - Apple Developer account; real iPhone/iPad profiling (GPS in motion,
