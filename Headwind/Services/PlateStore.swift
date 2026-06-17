@@ -20,7 +20,7 @@ final class PlateStore {
         "https://raw.githubusercontent.com/dbhagwan/headwind/main/Headwind/Resources/us-plates.json"
     )!
 
-    private static var cachedIndexURL: URL {
+    private nonisolated static var cachedIndexURL: URL {
         FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("us-plates-latest.json")
     }
@@ -98,7 +98,7 @@ final class PlateStore {
         }
     }
 
-    private static func decodeBundled(_ decoder: JSONDecoder) -> PlateIndex {
+    private nonisolated static func decodeBundled(_ decoder: JSONDecoder) -> PlateIndex {
         guard let url = Bundle.main.url(forResource: "us-plates", withExtension: "json"),
               let data = try? Data(contentsOf: url),
               let index = try? decoder.decode(PlateIndex.self, from: data) else {
@@ -110,7 +110,7 @@ final class PlateStore {
 
     /// Newer = later effective date, or a different non-empty cycle when the
     /// candidate carries no dates.
-    private static func isNewer(_ candidate: PlateIndex, than current: PlateIndex) -> Bool {
+    private nonisolated static func isNewer(_ candidate: PlateIndex, than current: PlateIndex) -> Bool {
         switch (candidate.effectiveDate, current.effectiveDate) {
         case let (c?, cur?): return c > cur
         case (_?, nil): return true
