@@ -14,7 +14,7 @@ struct HeadwindApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
                 .environment(airports)
                 .environment(weather)
                 .environment(plan)

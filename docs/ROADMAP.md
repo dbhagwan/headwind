@@ -47,9 +47,9 @@ Goal: a stranger downloads it and plans a VFR flight safely.
   plate-index fallback when the bundle expires (cycle 2606 → 07/09/26)
 - ✅ `PrivacyInfo.xcprivacy` privacy manifest
 - ✅ CI triggers cover `main`
-- First-launch gate: not-for-navigation acknowledgement, location
-  pre-prompt, short feature intro
-- Explicit °T labels on every heading/course until WMM lands
+- ✅ First-launch gate: 3-page intro ending in a required not-for-navigation
+  acknowledgement, gating the app before any map/data/location startup
+- ✅ Planner labels courses/headings as true (°T) until WMM lands
 - Offline/error audit on every screen
 
 **M2 Device reality & beta (~3–4 wks calendar)**

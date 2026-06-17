@@ -85,10 +85,14 @@ struct PlannerScreen: View {
                 }
 
                 if !plan.summary.legs.isEmpty {
-                    Section("Legs") {
+                    Section {
                         ForEach(plan.summary.legs) { leg in
                             LegRow(leg: leg)
                         }
+                    } header: {
+                        Text("Legs")
+                    } footer: {
+                        Text("Courses (TC) and headings (TH) are **true** (°T). Magnetic variation is coming in a later update.")
                     }
 
                     Section {
