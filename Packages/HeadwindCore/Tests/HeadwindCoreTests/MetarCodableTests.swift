@@ -53,13 +53,13 @@ final class MetarCodableTests: XCTestCase {
 
     // MARK: Freshness
 
-    func testAgeAndStaleness() {
+    func testAgeAndStaleness() throws {
         let now = Date(timeIntervalSince1970: 1_000_000)
         let fresh = Metar(stationID: "K", observationTime: now.addingTimeInterval(-30 * 60))
         let old = Metar(stationID: "K", observationTime: now.addingTimeInterval(-2 * 3600))
         let undated = Metar(stationID: "K")
 
-        XCTAssertEqual(fresh.age(asOf: now), 30 * 60, accuracy: 0.5)
+        XCTAssertEqual(try XCTUnwrap(fresh.age(asOf: now)), 30 * 60, accuracy: 0.5)
         XCTAssertFalse(fresh.isStale(asOf: now))
         XCTAssertTrue(old.isStale(asOf: now))
         XCTAssertNil(undated.age(asOf: now))
