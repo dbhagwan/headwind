@@ -55,3 +55,30 @@ for tab in map plan weather logbook more search; do
 done
 
 ls -la "$OUT_DIR"
+
+# --- Demo video: one continuous recording touring every tab -----------------
+MEDIA_DIR="docs/media"
+mkdir -p "$MEDIA_DIR"
+RAW_VIDEO="/tmp/demo-raw.mp4"
+
+xcrun simctl io "$UDID" recordVideo --codec h264 --force "$RAW_VIDEO" &
+REC_PID=$!
+sleep 2
+
+# Map first (tiles are already cached from the screenshot pass, so it looks
+# instant), then the rest of the tour.
+for tab in map weather plan search logbook more; do
+  xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoData -screenshotTab "$tab"
+  sleep 8
+  xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
+  sleep 1
+done
+
+kill -INT "$REC_PID"
+wait "$REC_PID" || true
+test -s "$RAW_VIDEO"
+
+# Compress to a repo-friendly 720p-ish H.264 (ffmpeg ships on the runners).
+ffmpeg -y -i "$RAW_VIDEO" -vf "scale=-2:1280" -c:v libx264 -preset fast \
+  -crf 27 -pix_fmt yuv420p -movflags +faststart -an "$MEDIA_DIR/demo.mp4"
+ls -la "$MEDIA_DIR"
