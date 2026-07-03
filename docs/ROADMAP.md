@@ -78,8 +78,10 @@ device profiling, the TestFlight pilot beta, and store packaging.
 - ✅ Per-leg winds: FB winds-aloft grid interpolated at each leg midpoint
   (vector-space altitude + inverse-distance spatial interpolation, tested),
   cruise-altitude input and auto/manual wind toggle in the planner
-- Climb/descent: TOC/TOD, block fuel with taxi/climb/reserve, required
-  reserve warnings, alternate planning
+- ✅ Fuel sufficiency: fuel-on-board + reserve (30/45/60 min) in the
+  planner with a green/red lands-with margin readout (tested FuelPlanner)
+- Climb/descent: TOC/TOD, block fuel with taxi/climb segments, alternate
+  planning
 
 **1.2 Full briefing parity**
 - ✅ SIGMETs/AIRMETs drawn as hazard-colored polygons on the map (dashed,

@@ -85,6 +85,20 @@ struct PlannerScreen: View {
                             Text("ft").foregroundStyle(.secondary)
                         }
                     }
+                    LabeledContent("Fuel on board") {
+                        HStack {
+                            TextField("gal", value: $plan.fuelOnBoardGal, format: .number)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 70)
+                            Text("gal").foregroundStyle(.secondary)
+                        }
+                    }
+                    Picker("Reserve", selection: $plan.reserveMinutes) {
+                        Text("30 min").tag(30.0)
+                        Text("45 min").tag(45.0)
+                        Text("60 min").tag(60.0)
+                    }
                     Toggle("Winds aloft (auto)", isOn: $plan.useWindsAloft)
                     if !plan.useWindsAloft {
                         LabeledContent("Wind from") {
@@ -128,7 +142,7 @@ struct PlannerScreen: View {
                     }
 
                     Section {
-                        TotalsCard(summary: plan.summary)
+                        TotalsCard(summary: plan.summary, fuelCheck: plan.fuelCheck)
                             .listRowInsets(EdgeInsets())
                             .listRowBackground(Color.clear)
                     }
@@ -251,15 +265,29 @@ private struct LegRow: View {
 
 private struct TotalsCard: View {
     let summary: PlanSummary
+    let fuelCheck: FuelCheck?
 
     var body: some View {
-        HStack(spacing: 24) {
-            total("Distance", "\(Int(summary.totalDistanceNM.rounded())) NM")
-            if let ete = summary.totalEteMinutes {
-                total("Time", formatMinutes(ete))
+        VStack(spacing: 14) {
+            HStack(spacing: 24) {
+                total("Distance", "\(Int(summary.totalDistanceNM.rounded())) NM")
+                if let ete = summary.totalEteMinutes {
+                    total("Time", formatMinutes(ete))
+                }
+                if let fuel = summary.totalFuelGal {
+                    total("Fuel", String(format: "%.1f gal", fuel))
+                }
             }
-            if let fuel = summary.totalFuelGal {
-                total("Fuel", String(format: "%.1f gal", fuel))
+            if let check = fuelCheck {
+                Label {
+                    Text(check.isSufficient
+                         ? "Fuel OK — lands with \(String(format: "%.1f", check.marginGal)) gal beyond the \(Int(check.reserveGal.rounded())) gal reserve"
+                         : "SHORT \(String(format: "%.1f", abs(check.marginGal))) gal of trip + reserve — add fuel or a stop")
+                        .font(.caption.weight(.semibold))
+                } icon: {
+                    Image(systemName: check.isSufficient ? "fuelpump.circle.fill" : "exclamationmark.octagon.fill")
+                }
+                .foregroundStyle(check.isSufficient ? .green : .red)
             }
         }
         .frame(maxWidth: .infinity)

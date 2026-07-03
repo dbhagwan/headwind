@@ -25,9 +25,29 @@ final class PlanStore {
         didSet { persist() }
     }
 
+    var fuelOnBoardGal: Double {
+        didSet { persist() }
+    }
+
+    /// Reserve requirement in minutes (30 VFR day, 45 VFR night/IFR).
+    var reserveMinutes: Double {
+        didSet { persist() }
+    }
+
     /// Resolved FB stations for the route's region (transient, refreshed by
     /// the planner).
     var aloftStations: [StationWinds] = []
+
+    /// Fuel sufficiency for the current plan; nil until legs have fuel data.
+    var fuelCheck: FuelCheck? {
+        guard let trip = summary.totalFuelGal else { return nil }
+        return FuelPlanner.check(
+            tripFuelGal: trip,
+            fuelBurnGPH: performance.fuelBurnGPH,
+            onboardGal: fuelOnBoardGal,
+            reserveMinutes: reserveMinutes
+        )
+    }
 
     var summary: PlanSummary {
         var provider: ((Coordinate) -> (windFromDeg: Double, windSpeedKts: Double)?)?
@@ -50,6 +70,8 @@ final class PlanStore {
     private static let performanceKey = "plan.performance"
     private static let cruiseAltitudeKey = "plan.cruiseAltitudeFt"
     private static let useWindsAloftKey = "plan.useWindsAloft"
+    private static let fuelOnBoardKey = "plan.fuelOnBoardGal"
+    private static let reserveMinutesKey = "plan.reserveMinutes"
 
     init() {
         let defaults = UserDefaults.standard
@@ -68,6 +90,10 @@ final class PlanStore {
         let savedAltitude = defaults.integer(forKey: Self.cruiseAltitudeKey)
         cruiseAltitudeFt = savedAltitude > 0 ? savedAltitude : 6500
         useWindsAloft = defaults.bool(forKey: Self.useWindsAloftKey)
+        let savedFuel = defaults.double(forKey: Self.fuelOnBoardKey)
+        fuelOnBoardGal = savedFuel > 0 ? savedFuel : 40
+        let savedReserve = defaults.double(forKey: Self.reserveMinutesKey)
+        reserveMinutes = savedReserve > 0 ? savedReserve : 45
     }
 
     /// Replaces the route from a space/comma-separated string of identifiers.
@@ -124,5 +150,7 @@ final class PlanStore {
         }
         defaults.set(cruiseAltitudeFt, forKey: Self.cruiseAltitudeKey)
         defaults.set(useWindsAloft, forKey: Self.useWindsAloftKey)
+        defaults.set(fuelOnBoardGal, forKey: Self.fuelOnBoardKey)
+        defaults.set(reserveMinutes, forKey: Self.reserveMinutesKey)
     }
 }
