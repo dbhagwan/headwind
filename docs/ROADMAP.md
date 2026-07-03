@@ -72,7 +72,9 @@ device profiling, the TestFlight pilot beta, and store packaging.
 ## 1.x — Planning depth (trust releases)
 
 **1.1 Navigation correctness**
-- WMM magnetic variation → magnetic courses/headings app-wide
+- ✅ WMM-2025 magnetic variation (official NOAA coefficients, reference-
+  verified port) → magnetic courses/headings in the planner, magnetic
+  track on the map, per-airport variation on detail pages
 - Per-leg winds: interpolate the FB winds-aloft grid into each leg instead
   of one manual wind input; altitude-aware
 - Climb/descent: TOC/TOD, block fuel with taxi/climb/reserve, required

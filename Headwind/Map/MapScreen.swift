@@ -186,8 +186,8 @@ private struct InstrumentStrip: View {
             )
             InstrumentReadout(
                 label: "TRK",
-                value: location.trackDeg.map { String(format: "%03d", Int($0.rounded())) } ?? "–––",
-                unit: "°"
+                value: magneticTrackText,
+                unit: "°M"
             )
             InstrumentReadout(
                 label: "ALT",
@@ -198,5 +198,17 @@ private struct InstrumentStrip: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 8)
         .glassEffect(.regular, in: .capsule)
+    }
+
+    /// GPS course is true; pilots fly magnetic — convert with local WMM
+    /// variation when we have a position.
+    private var magneticTrackText: String {
+        guard let track = location.trackDeg else { return "–––" }
+        guard let position = location.coordinate else {
+            return String(format: "%03d", Int(track.rounded()))
+        }
+        let dec = WMM.declination(at: Coordinate(position), decimalYear: Date.now.decimalYear)
+        let magnetic = WMM.magneticFromTrue(track, declinationDeg: dec)
+        return String(format: "%03d", Int(magnetic.rounded()))
     }
 }

@@ -52,6 +52,7 @@ struct AirportDetailScreen: View {
 
             Section("Airport") {
                 LabeledContent("Elevation", value: "\(airport.elevationFt) ft MSL")
+                LabeledContent("Mag variation", value: magVariationText)
                 LabeledContent("Coordinates", value: String(
                     format: "%.4f, %.4f",
                     airport.coordinate.latitude,
@@ -150,6 +151,11 @@ struct AirportDetailScreen: View {
                 .foregroundStyle(.secondary)
         }
         .padding()
+    }
+
+    private var magVariationText: String {
+        let dec = WMM.declination(at: airport.coordinate, decimalYear: Date.now.decimalYear)
+        return String(format: "%.1f°%@ (WMM-2025)", abs(dec), dec >= 0 ? "E" : "W")
     }
 
     private var kindLabel: String {

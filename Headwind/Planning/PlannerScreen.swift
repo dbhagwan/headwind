@@ -92,7 +92,7 @@ struct PlannerScreen: View {
                     } header: {
                         Text("Legs")
                     } footer: {
-                        Text("Courses (TC) and headings (TH) are **true** (°T). Magnetic variation is coming in a later update.")
+                        Text("Courses (MC) and headings (MH) are **magnetic**, using WMM-2025 variation at each leg's midpoint.")
                     }
 
                     Section {
@@ -137,7 +137,17 @@ struct PlannerScreen: View {
 private struct LegRow: View {
     let leg: Leg
 
+    /// WMM declination at the leg midpoint, so long legs across changing
+    /// variation stay honest.
+    private var declination: Double {
+        WMM.declination(
+            at: NavMath.midpoint(leg.from.coordinate, leg.to.coordinate),
+            decimalYear: Date.now.decimalYear
+        )
+    }
+
     var body: some View {
+        let dec = declination
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text("\(leg.from.ident) → \(leg.to.ident)")
@@ -149,9 +159,9 @@ private struct LegRow: View {
                     .monospacedDigit()
             }
             HStack(spacing: 14) {
-                metric("TC", String(format: "%03d°", Int(leg.trueCourseDeg.rounded())))
+                metric("MC", String(format: "%03d°", Int(WMM.magneticFromTrue(leg.trueCourseDeg, declinationDeg: dec).rounded())))
                 if let heading = leg.trueHeadingDeg {
-                    metric("TH", String(format: "%03d°", Int(heading.rounded())))
+                    metric("MH", String(format: "%03d°", Int(WMM.magneticFromTrue(heading, declinationDeg: dec).rounded())))
                 }
                 if let gs = leg.groundSpeedKts {
                     metric("GS", "\(Int(gs.rounded())) kt")
