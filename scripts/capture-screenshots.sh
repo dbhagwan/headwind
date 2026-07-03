@@ -78,7 +78,12 @@ kill -INT "$REC_PID"
 wait "$REC_PID" || true
 test -s "$RAW_VIDEO"
 
-# Compress to a repo-friendly 720p-ish H.264 (ffmpeg ships on the runners).
-ffmpeg -y -i "$RAW_VIDEO" -vf "scale=-2:1280" -c:v libx264 -preset fast \
-  -crf 27 -pix_fmt yuv420p -movflags +faststart -an "$MEDIA_DIR/demo.mp4"
+# Compress to repo-friendly 720p. macOS runners have no ffmpeg; avconvert
+# ships with the OS. Fall back to the raw recording if conversion fails.
+if avconvert --preset Preset1280x720 --source "$RAW_VIDEO" --output "$MEDIA_DIR/demo.mp4" --replace; then
+  echo "avconvert ok"
+else
+  echo "avconvert failed; committing raw recording"
+  cp "$RAW_VIDEO" "$MEDIA_DIR/demo.mp4"
+fi
 ls -la "$MEDIA_DIR"
