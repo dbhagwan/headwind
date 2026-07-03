@@ -17,11 +17,13 @@ struct MapScreen: View {
     @AppStorage("map.showsAirspace") private var showsAirspace = true
     @AppStorage("map.showsRadar") private var showsRadar = false
     @AppStorage("map.showsHazards") private var showsHazards = true
+    @AppStorage("map.showsPireps") private var showsPireps = true
 
     @State private var showsImagery = false
     @State private var visibleRegion: MKCoordinateRegion?
     @State private var visibleAirports: [Airport] = []
     @State private var selectedAirport: Airport?
+    @State private var selectedPirep: Pirep?
     @State private var cameraCommand: MapCameraCommand?
     @State private var showsOfflineSheet = false
 
@@ -40,13 +42,18 @@ struct MapScreen: View {
             showsTFRs: showsTFRs,
             showsRadar: showsRadar,
             hazards: showsHazards ? weather.airSigmets : [],
+            pireps: showsPireps ? weather.pireps : [],
             airspaces: chartLayer == .none && showsAirspace ? airspaceService.all : [],
+            onSelectPirep: { selectedPirep = $0 },
             cameraCommand: cameraCommand,
             onRegionChange: { region in
                 visibleRegion = region
                 updateVisibleAirports()
                 let bounds = Self.bounds(of: region)
                 Task { await airspaceService.ensureCoverage(of: bounds) }
+                if showsPireps {
+                    Task { await weather.refreshPireps(within: bounds) }
+                }
             },
             onSelectAirport: { selectedAirport = $0 }
         )
@@ -69,6 +76,10 @@ struct MapScreen: View {
         }
         .sheet(isPresented: $showsOfflineSheet) {
             OfflineChartsSheet(layer: chartLayer, region: visibleRegion)
+        }
+        .sheet(item: $selectedPirep) { pirep in
+            PirepDetailSheet(pirep: pirep)
+                .presentationDetents([.medium])
         }
         .task {
             location.start()
@@ -137,6 +148,7 @@ struct MapScreen: View {
                     }
                     Toggle("Weather Radar", isOn: $showsRadar)
                     Toggle("AIRMETs/SIGMETs", isOn: $showsHazards)
+                    Toggle("PIREPs", isOn: $showsPireps)
                     Toggle("Show TFRs", isOn: $showsTFRs)
                     if chartLayer == .none {
                         Toggle("Airspace B/C/D", isOn: $showsAirspace)

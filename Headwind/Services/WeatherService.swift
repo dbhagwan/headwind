@@ -165,6 +165,53 @@ final class WeatherService {
         }
     }
 
+    /// Recent pilot reports near the map view (refreshed on demand).
+    private(set) var pireps: [Pirep] = []
+    private var pirepsFetchedAt: Date?
+    private var pirepsCenter: Coordinate?
+
+    /// Refreshes PIREPs for a bounding box, at most every 5 minutes unless
+    /// the view has moved substantially.
+    func refreshPireps(within bounds: GeoBounds) async {
+        let center = Coordinate(
+            latitude: (bounds.minLat + bounds.maxLat) / 2,
+            longitude: (bounds.minLon + bounds.maxLon) / 2
+        )
+        if let fetched = pirepsFetchedAt, let previous = pirepsCenter,
+           Date.now.timeIntervalSince(fetched) < 300,
+           NavMath.distanceNM(from: previous, to: center) < 60 {
+            return
+        }
+
+        var components = URLComponents(string: "https://aviationweather.gov/api/data/pirep")!
+        components.queryItems = [
+            URLQueryItem(name: "format", value: "json"),
+            URLQueryItem(
+                name: "bbox",
+                value: String(format: "%.2f,%.2f,%.2f,%.2f", bounds.minLat, bounds.minLon, bounds.maxLat, bounds.maxLon)
+            ),
+        ]
+        do {
+            let (data, response) = try await session.data(from: components.url!)
+            pirepsFetchedAt = .now
+            pirepsCenter = center
+            // 204/empty body = no reports in the box.
+            guard (response as? HTTPURLResponse)?.statusCode == 200, !data.isEmpty else {
+                pireps = []
+                return
+            }
+            // Decode per-item so one malformed report can't sink the batch.
+            let raw = (try? JSONSerialization.jsonObject(with: data)) as? [Any] ?? []
+            let decoder = JSONDecoder()
+            pireps = raw.compactMap { item in
+                guard let itemData = try? JSONSerialization.data(withJSONObject: item) else { return nil }
+                return try? decoder.decode(Pirep.self, from: itemData)
+            }
+        } catch {
+            // PIREPs are supplementary; keep any previous set silently.
+        }
+    }
+
     /// Fetches and parses an FB winds-aloft product for a forecast region.
     func windsAloft(region: String, forecastHours: String) async throws -> [WindsAloftStation] {
         var components = URLComponents(string: "https://aviationweather.gov/api/data/windtemp")!

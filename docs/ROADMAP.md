@@ -85,7 +85,9 @@ device profiling, the TestFlight pilot beta, and store packaging.
 
 **1.2 Full briefing parity**
 - ✅ SIGMETs/AIRMETs drawn as hazard-colored polygons on the map (dashed,
-  by hazard type) with a list in Airspace & TFRs; PIREPs still to come
+  by hazard type) with a list in Airspace & TFRs
+- ✅ PIREPs: severity-colored diamond pins near the map view (urgent/SEV
+  red, MOD orange), icing vs turbulence glyphs, tap for the decoded report
 - ✅ NEXRAD radar map layer (NWS composite via Iowa Env. Mesonet tiles,
   5-minute refresh buckets); satellite layer still to come
 - NOTAMs beyond TFRs (FAA NOTAM API — requires free API key provisioning)

@@ -29,7 +29,9 @@ struct FlightMapView: UIViewRepresentable {
     var showsTFRs: Bool
     var showsRadar: Bool
     var hazards: [AirSigmet]
+    var pireps: [Pirep]
     var airspaces: [AirspaceVolume]
+    var onSelectPirep: (Pirep) -> Void = { _ in }
     var cameraCommand: MapCameraCommand?
     var onRegionChange: (MKCoordinateRegion) -> Void
     var onSelectAirport: (Airport) -> Void
@@ -58,6 +60,7 @@ struct FlightMapView: UIViewRepresentable {
         c.syncTFRs(map)
         c.syncHazards(map)
         c.syncAirspace(map)
+        c.syncPireps(map)
         c.syncAirports(map)
         c.runCameraCommand(map)
     }
@@ -80,6 +83,7 @@ struct FlightMapView: UIViewRepresentable {
         private var hazardOverlays: [MKPolygon] = []
         private var hazardByOverlay: [ObjectIdentifier: String] = [:]
         private var annotations: [String: AirportAnnotation] = [:]
+        private var pirepAnnotations: [String: PirepAnnotation] = [:]
         private var lastCommandID: UUID?
 
         init(parent: FlightMapView) {
@@ -188,6 +192,20 @@ struct FlightMapView: UIViewRepresentable {
             }
             map.addOverlays(airspaceOverlays, level: .aboveRoads)
             airspaceOverlayIDs = wantedIDs
+        }
+
+        func syncPireps(_ map: MKMapView) {
+            let wanted = Dictionary(parent.pireps.map { ($0.id, $0) }) { first, _ in first }
+
+            for (id, annotation) in pirepAnnotations where wanted[id] == nil {
+                map.removeAnnotation(annotation)
+                pirepAnnotations[id] = nil
+            }
+            for (id, pirep) in wanted where pirepAnnotations[id] == nil {
+                let annotation = PirepAnnotation(pirep: pirep)
+                pirepAnnotations[id] = annotation
+                map.addAnnotation(annotation)
+            }
         }
 
         func syncAirports(_ map: MKMapView) {
@@ -312,6 +330,18 @@ struct FlightMapView: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+            if let pirep = annotation as? PirepAnnotation {
+                let id = "pirep"
+                let view = mapView.dequeueReusableAnnotationView(withIdentifier: id)
+                    ?? MKAnnotationView(annotation: annotation, reuseIdentifier: id)
+                view.annotation = annotation
+                view.image = MarkerImages.pirepImage(
+                    severity: pirep.pirep.severity,
+                    hasIcing: pirep.pirep.hasIcing
+                )
+                view.canShowCallout = false
+                return view
+            }
             guard let airport = annotation as? AirportAnnotation else { return nil }
             let id = "airport"
             let view = mapView.dequeueReusableAnnotationView(withIdentifier: id)
@@ -323,6 +353,11 @@ struct FlightMapView: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
+            if let pirep = view.annotation as? PirepAnnotation {
+                mapView.deselectAnnotation(pirep, animated: false)
+                parent.onSelectPirep(pirep.pirep)
+                return
+            }
             guard let annotation = view.annotation as? AirportAnnotation else { return }
             mapView.deselectAnnotation(annotation, animated: false)
             parent.onSelectAirport(annotation.airport)
@@ -395,6 +430,16 @@ final class CachingTileOverlay: MKTileOverlay {
     }
 }
 
+final class PirepAnnotation: NSObject, MKAnnotation {
+    let pirep: Pirep
+    var coordinate: CLLocationCoordinate2D { pirep.coordinate.cl }
+    var title: String? { pirep.reportType }
+
+    init(pirep: Pirep) {
+        self.pirep = pirep
+    }
+}
+
 final class AirportAnnotation: NSObject, MKAnnotation {
     let airport: Airport
     var category: FlightCategory?
@@ -411,6 +456,48 @@ final class AirportAnnotation: NSObject, MKAnnotation {
 /// Pre-rendered airport dot images, cached per (kind, flight category).
 enum MarkerImages {
     private static var cache: [String: UIImage] = [:]
+
+    /// Diamond pin for pilot reports, colored by worst reported condition.
+    static func pirepImage(severity: Pirep.Severity, hasIcing: Bool) -> UIImage {
+        let key = "pirep-\(severity.rawValue)-\(hasIcing)"
+        if let cached = cache[key] { return cached }
+
+        let size: CGFloat = 18
+        let color: UIColor = switch severity {
+        case .routine: .systemBlue
+        case .moderate: .systemOrange
+        case .severe: .systemRed
+        }
+
+        let image = UIGraphicsImageRenderer(size: CGSize(width: size, height: size)).image { ctx in
+            let cg = ctx.cgContext
+            let path = UIBezierPath()
+            path.move(to: CGPoint(x: size / 2, y: 0))
+            path.addLine(to: CGPoint(x: size, y: size / 2))
+            path.addLine(to: CGPoint(x: size / 2, y: size))
+            path.addLine(to: CGPoint(x: 0, y: size / 2))
+            path.close()
+            color.setFill()
+            path.fill()
+            UIColor.white.withAlphaComponent(0.9).setStroke()
+            path.lineWidth = 1.2
+            path.stroke()
+
+            let symbolName = hasIcing ? "snowflake" : "wind"
+            if let symbol = UIImage(systemName: symbolName)?
+                .withTintColor(.white, renderingMode: .alwaysOriginal) {
+                let glyph = size * 0.5
+                cg.saveGState()
+                symbol.draw(in: CGRect(
+                    x: (size - glyph) / 2, y: (size - glyph) / 2,
+                    width: glyph, height: glyph
+                ))
+                cg.restoreGState()
+            }
+        }
+        cache[key] = image
+        return image
+    }
 
     static func image(kind: AirportKind, category: FlightCategory?) -> UIImage {
         let key = "\(kind.rawValue)-\(category?.rawValue ?? "none")"
