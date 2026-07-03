@@ -61,21 +61,32 @@ MEDIA_DIR="docs/media"
 mkdir -p "$MEDIA_DIR"
 RAW_VIDEO="/tmp/demo-raw.mp4"
 
+# Warm the map before recording: MapKit's tile cache persists across
+# launches, so the recorded map segment renders immediately instead of
+# opening on a blank grid.
+xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoData -screenshotTab map
+sleep 12
+xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
+sleep 1
+
 xcrun simctl io "$UDID" recordVideo --codec h264 --force "$RAW_VIDEO" &
 REC_PID=$!
 sleep 2
 
-# Map first (tiles are already cached from the screenshot pass, so it looks
-# instant), then the rest of the tour.
+# Map gets the longest dwell; end the recording on content rather than on a
+# terminate so the video doesn't finish on a black frame.
 for tab in map weather plan search logbook more; do
   xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoData -screenshotTab "$tab"
-  sleep 8
-  xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
-  sleep 1
+  if [ "$tab" = "map" ]; then sleep 15; else sleep 7; fi
+  if [ "$tab" != "more" ]; then
+    xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
+    sleep 1
+  fi
 done
 
 kill -INT "$REC_PID"
 wait "$REC_PID" || true
+xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
 test -s "$RAW_VIDEO"
 
 # Compress to repo-friendly 720p. macOS runners have no ffmpeg; avconvert
