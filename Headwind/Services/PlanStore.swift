@@ -15,8 +15,31 @@ final class PlanStore {
         didSet { persist() }
     }
 
+    var cruiseAltitudeFt: Int {
+        didSet { persist() }
+    }
+
+    /// When true and stations are loaded, each leg uses winds interpolated
+    /// from the NWS FB forecast at its midpoint instead of the manual wind.
+    var useWindsAloft: Bool {
+        didSet { persist() }
+    }
+
+    /// Resolved FB stations for the route's region (transient, refreshed by
+    /// the planner).
+    var aloftStations: [StationWinds] = []
+
     var summary: PlanSummary {
-        LegCalculator.plan(waypoints: waypoints, performance: performance)
+        var provider: ((Coordinate) -> (windFromDeg: Double, windSpeedKts: Double)?)?
+        if useWindsAloft && !aloftStations.isEmpty {
+            let stations = aloftStations
+            let altitude = cruiseAltitudeFt
+            provider = { midpoint in
+                WindsAloftInterpolator.wind(at: midpoint, altitudeFt: altitude, stations: stations)
+                    .map { (windFromDeg: $0.directionFromDeg, windSpeedKts: $0.speedKts) }
+            }
+        }
+        return LegCalculator.plan(waypoints: waypoints, performance: performance, windProvider: provider)
     }
 
     var routeString: String {
@@ -25,6 +48,8 @@ final class PlanStore {
 
     private static let waypointsKey = "plan.waypoints"
     private static let performanceKey = "plan.performance"
+    private static let cruiseAltitudeKey = "plan.cruiseAltitudeFt"
+    private static let useWindsAloftKey = "plan.useWindsAloft"
 
     init() {
         let defaults = UserDefaults.standard
@@ -40,6 +65,9 @@ final class PlanStore {
         } else {
             performance = CruisePerformance(trueAirspeedKts: 110, fuelBurnGPH: 9)
         }
+        let savedAltitude = defaults.integer(forKey: Self.cruiseAltitudeKey)
+        cruiseAltitudeFt = savedAltitude > 0 ? savedAltitude : 6500
+        useWindsAloft = defaults.bool(forKey: Self.useWindsAloftKey)
     }
 
     /// Replaces the route from a space/comma-separated string of identifiers.
@@ -94,5 +122,7 @@ final class PlanStore {
         if let data = try? JSONEncoder().encode(performance) {
             defaults.set(data, forKey: Self.performanceKey)
         }
+        defaults.set(cruiseAltitudeFt, forKey: Self.cruiseAltitudeKey)
+        defaults.set(useWindsAloft, forKey: Self.useWindsAloftKey)
     }
 }

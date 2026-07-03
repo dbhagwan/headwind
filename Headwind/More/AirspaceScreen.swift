@@ -5,6 +5,7 @@ import HeadwindCore
 /// red polygons; this screen is the readable list.
 struct AirspaceScreen: View {
     @Environment(TFRService.self) private var tfrService
+    @Environment(WeatherService.self) private var weather
 
     private var grouped: [(type: String, tfrs: [TFR])] {
         Dictionary(grouping: tfrService.tfrs) { $0.item.type ?? "OTHER" }
@@ -27,6 +28,31 @@ struct AirspaceScreen: View {
                 Section {
                     Label(error, systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)
+                }
+            }
+
+            if !weather.airSigmets.isEmpty {
+                Section("SIGMETs & AIRMETs") {
+                    ForEach(weather.airSigmets) { hazard in
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(hazard.hazard ?? hazard.type)
+                                    .font(.subheadline.weight(.semibold))
+                                Spacer()
+                                if let hi = hazard.altitudeHiFt {
+                                    Text("\(hazard.altitudeLowFt.map { "\($0.formatted())–" } ?? "SFC–")\(hi.formatted()) ft")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            if let to = hazard.validTo {
+                                (Text("Valid until ") + Text(to, style: .time))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
                 }
             }
 
@@ -73,11 +99,13 @@ struct AirspaceScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .refreshable {
             await tfrService.refresh()
+            await weather.refreshAirSigmets()
         }
         .task {
             if tfrService.tfrs.isEmpty {
                 await tfrService.refresh()
             }
+            await weather.refreshAirSigmets()
         }
     }
 }

@@ -136,7 +136,9 @@ struct AboutScreen: View {
 
             Section("Data Sources") {
                 LabeledContent("Weather", value: "aviationweather.gov")
+                LabeledContent("Radar", value: "NWS via Iowa Env. Mesonet")
                 LabeledContent("Airports & navaids", value: "FAA / OurAirports")
+                LabeledContent("Charts & plates", value: "FAA")
             }
 
             Section("Important") {

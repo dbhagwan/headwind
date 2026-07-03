@@ -75,15 +75,17 @@ device profiling, the TestFlight pilot beta, and store packaging.
 - ✅ WMM-2025 magnetic variation (official NOAA coefficients, reference-
   verified port) → magnetic courses/headings in the planner, magnetic
   track on the map, per-airport variation on detail pages
-- Per-leg winds: interpolate the FB winds-aloft grid into each leg instead
-  of one manual wind input; altitude-aware
+- ✅ Per-leg winds: FB winds-aloft grid interpolated at each leg midpoint
+  (vector-space altitude + inverse-distance spatial interpolation, tested),
+  cruise-altitude input and auto/manual wind toggle in the planner
 - Climb/descent: TOC/TOD, block fuel with taxi/climb/reserve, required
   reserve warnings, alternate planning
 
 **1.2 Full briefing parity**
-- AIRMETs/SIGMETs and PIREPs (free aviationweather.gov endpoints) drawn on
-  the map and in briefings
-- NEXRAD radar + satellite weather map layers (free NOAA/mesonet tiles)
+- ✅ SIGMETs/AIRMETs drawn as hazard-colored polygons on the map (dashed,
+  by hazard type) with a list in Airspace & TFRs; PIREPs still to come
+- ✅ NEXRAD radar map layer (NWS composite via Iowa Env. Mesonet tiles,
+  5-minute refresh buckets); satellite layer still to come
 - NOTAMs beyond TFRs (FAA NOTAM API — requires free API key provisioning)
 - Briefing screen restructured to the standard format: adverse conditions →
   synopsis → current → forecast → winds → NOTAMs; AI summary on top,

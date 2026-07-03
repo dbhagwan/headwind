@@ -6,10 +6,22 @@ import HeadwindCore
 struct PlannerScreen: View {
     @Environment(PlanStore.self) private var plan
     @Environment(AirportStore.self) private var airports
+    @Environment(WeatherService.self) private var weather
 
     @State private var routeInput = ""
     @State private var unresolved: [String] = []
     @State private var showUnresolvedAlert = false
+
+    /// FB low-level forecast regions and rough centers, for picking the
+    /// product that covers the route.
+    private static let fbRegions: [(code: String, center: Coordinate)] = [
+        ("sfo", Coordinate(latitude: 37.6, longitude: -122.4)),
+        ("slc", Coordinate(latitude: 40.8, longitude: -111.9)),
+        ("dfw", Coordinate(latitude: 32.9, longitude: -97.0)),
+        ("chi", Coordinate(latitude: 41.9, longitude: -87.9)),
+        ("bos", Coordinate(latitude: 42.4, longitude: -71.0)),
+        ("mia", Coordinate(latitude: 25.8, longitude: -80.3)),
+    ]
 
     var body: some View {
         @Bindable var plan = plan
@@ -45,7 +57,7 @@ struct PlannerScreen: View {
                     .onMove { plan.move(fromOffsets: $0, toOffset: $1) }
                 }
 
-                Section("Performance") {
+                Section {
                     LabeledContent("True airspeed") {
                         HStack {
                             TextField("kt", value: $plan.performance.trueAirspeedKts, format: .number)
@@ -64,23 +76,43 @@ struct PlannerScreen: View {
                             Text("gph").foregroundStyle(.secondary)
                         }
                     }
-                    LabeledContent("Wind from") {
+                    LabeledContent("Cruise altitude") {
                         HStack {
-                            TextField("deg", value: $plan.performance.windFromDeg, format: .number)
+                            TextField("ft", value: $plan.cruiseAltitudeFt, format: .number)
                                 .keyboardType(.numberPad)
                                 .multilineTextAlignment(.trailing)
-                                .frame(width: 70)
-                            Text("°T").foregroundStyle(.secondary)
+                                .frame(width: 80)
+                            Text("ft").foregroundStyle(.secondary)
                         }
                     }
-                    LabeledContent("Wind speed") {
-                        HStack {
-                            TextField("kt", value: $plan.performance.windSpeedKts, format: .number)
-                                .keyboardType(.numberPad)
-                                .multilineTextAlignment(.trailing)
-                                .frame(width: 70)
-                            Text("kt").foregroundStyle(.secondary)
+                    Toggle("Winds aloft (auto)", isOn: $plan.useWindsAloft)
+                    if !plan.useWindsAloft {
+                        LabeledContent("Wind from") {
+                            HStack {
+                                TextField("deg", value: $plan.performance.windFromDeg, format: .number)
+                                    .keyboardType(.numberPad)
+                                    .multilineTextAlignment(.trailing)
+                                    .frame(width: 70)
+                                Text("°T").foregroundStyle(.secondary)
+                            }
                         }
+                        LabeledContent("Wind speed") {
+                            HStack {
+                                TextField("kt", value: $plan.performance.windSpeedKts, format: .number)
+                                    .keyboardType(.numberPad)
+                                    .multilineTextAlignment(.trailing)
+                                    .frame(width: 70)
+                                Text("kt").foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Performance")
+                } footer: {
+                    if plan.useWindsAloft {
+                        Text(plan.aloftStations.isEmpty
+                             ? "Fetching NWS winds-aloft forecast…"
+                             : "Each leg uses the NWS FB forecast interpolated at its midpoint and \(plan.cruiseAltitudeFt.formatted()) ft.")
                     }
                 }
 
@@ -120,6 +152,9 @@ struct PlannerScreen: View {
             } message: {
                 Text("Not in the airport directory: \(unresolved.joined(separator: ", "))")
             }
+            .task(id: "\(plan.useWindsAloft)-\(plan.routeString)") {
+                await refreshWindsAloft()
+            }
             .onAppear {
                 if routeInput.isEmpty {
                     routeInput = plan.routeString
@@ -131,6 +166,33 @@ struct PlannerScreen: View {
     private func applyRoute() {
         unresolved = plan.setRoute(routeInput, database: airports.database)
         showUnresolvedAlert = !unresolved.isEmpty
+    }
+
+    /// Fetches the FB forecast for the region covering the route and
+    /// resolves station coordinates through the airport/navaid directory.
+    private func refreshWindsAloft() async {
+        guard plan.useWindsAloft, plan.waypoints.count >= 2 else { return }
+        await airports.load()
+
+        let mid = NavMath.midpoint(
+            plan.waypoints.first!.coordinate,
+            plan.waypoints.last!.coordinate
+        )
+        let region = Self.fbRegions.min {
+            NavMath.distanceNM(from: mid, to: $0.center) < NavMath.distanceNM(from: mid, to: $1.center)
+        }!.code
+
+        guard let parsed = try? await weather.windsAloft(region: region, forecastHours: "06") else { return }
+
+        plan.aloftStations = parsed.compactMap { station in
+            let code = station.station.uppercased()
+            let coordinate = airports.database.navaid(ident: code)?.coordinate
+                ?? airports.database.airport(ident: "K\(code)")?.coordinate
+                ?? airports.database.airport(ident: code)?.coordinate
+            return coordinate.map {
+                StationWinds(station: code, coordinate: $0, winds: station.winds)
+            }
+        }
     }
 }
 

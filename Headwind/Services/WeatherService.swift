@@ -144,6 +144,27 @@ final class WeatherService {
         }
     }
 
+    /// Currently active SIGMETs/AIRMETs (refreshed on demand).
+    private(set) var airSigmets: [AirSigmet] = []
+    private var airSigmetsFetchedAt: Date?
+
+    /// Refreshes hazard areas at most every 5 minutes.
+    func refreshAirSigmets() async {
+        if let fetched = airSigmetsFetchedAt, Date.now.timeIntervalSince(fetched) < 300 {
+            return
+        }
+        var components = URLComponents(string: "https://aviationweather.gov/api/data/airsigmet")!
+        components.queryItems = [URLQueryItem(name: "format", value: "json")]
+        do {
+            let (data, _) = try await session.data(from: components.url!)
+            let decoded = try JSONDecoder().decode([AirSigmet].self, from: data)
+            airSigmets = decoded.filter { !$0.polygon.isEmpty && $0.isActive(asOf: .now) }
+            airSigmetsFetchedAt = .now
+        } catch {
+            // Hazards are supplementary; keep any previous set silently.
+        }
+    }
+
     /// Fetches and parses an FB winds-aloft product for a forecast region.
     func windsAloft(region: String, forecastHours: String) async throws -> [WindsAloftStation] {
         var components = URLComponents(string: "https://aviationweather.gov/api/data/windtemp")!

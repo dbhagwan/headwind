@@ -27,6 +27,8 @@ struct FlightMapView: UIViewRepresentable {
     var showsImagery: Bool
     var tfrs: [TFR]
     var showsTFRs: Bool
+    var showsRadar: Bool
+    var hazards: [AirSigmet]
     var airspaces: [AirspaceVolume]
     var cameraCommand: MapCameraCommand?
     var onRegionChange: (MKCoordinateRegion) -> Void
@@ -51,8 +53,10 @@ struct FlightMapView: UIViewRepresentable {
         c.parent = self
         c.syncMapType(map)
         c.syncChartLayer(map)
+        c.syncRadar(map)
         c.syncRoute(map)
         c.syncTFRs(map)
+        c.syncHazards(map)
         c.syncAirspace(map)
         c.syncAirports(map)
         c.runCameraCommand(map)
@@ -64,6 +68,7 @@ struct FlightMapView: UIViewRepresentable {
         var parent: FlightMapView
 
         private var tileOverlay: CachingTileOverlay?
+        private var radarOverlay: RadarTileOverlay?
         private var routeLine: MKPolyline?
         private var routeCoords: [Coordinate] = []
         private var tfrOverlayIDs: Set<String> = []
@@ -71,6 +76,9 @@ struct FlightMapView: UIViewRepresentable {
         private var airspaceOverlayIDs: Set<String> = []
         private var airspaceOverlays: [MKPolygon] = []
         private var airspaceClassByOverlay: [ObjectIdentifier: AirspaceClass] = [:]
+        private var hazardOverlayIDs: Set<String> = []
+        private var hazardOverlays: [MKPolygon] = []
+        private var hazardByOverlay: [ObjectIdentifier: String] = [:]
         private var annotations: [String: AirportAnnotation] = [:]
         private var lastCommandID: UUID?
 
@@ -106,6 +114,17 @@ struct FlightMapView: UIViewRepresentable {
             }
         }
 
+        func syncRadar(_ map: MKMapView) {
+            if parent.showsRadar, radarOverlay == nil {
+                let overlay = RadarTileOverlay()
+                map.addOverlay(overlay, level: .aboveLabels)
+                radarOverlay = overlay
+            } else if !parent.showsRadar, let overlay = radarOverlay {
+                map.removeOverlay(overlay)
+                radarOverlay = nil
+            }
+        }
+
         func syncRoute(_ map: MKMapView) {
             guard routeCoords != parent.route else { return }
             routeCoords = parent.route
@@ -135,6 +154,22 @@ struct FlightMapView: UIViewRepresentable {
             }
             map.addOverlays(tfrOverlays, level: .aboveLabels)
             tfrOverlayIDs = wantedIDs
+        }
+
+        func syncHazards(_ map: MKMapView) {
+            let wantedIDs = Set(parent.hazards.map(\.id))
+            guard wantedIDs != hazardOverlayIDs else { return }
+
+            map.removeOverlays(hazardOverlays)
+            hazardByOverlay.removeAll()
+            hazardOverlays = parent.hazards.map { hazard in
+                let coords = hazard.polygon.map(\.cl)
+                let polygon = MKPolygon(coordinates: coords, count: coords.count)
+                hazardByOverlay[ObjectIdentifier(polygon)] = hazard.hazard ?? hazard.type
+                return polygon
+            }
+            map.addOverlays(hazardOverlays, level: .aboveRoads)
+            hazardOverlayIDs = wantedIDs
         }
 
         func syncAirspace(_ map: MKMapView) {
@@ -212,6 +247,10 @@ struct FlightMapView: UIViewRepresentable {
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             switch overlay {
+            case let radar as RadarTileOverlay:
+                let renderer = MKTileOverlayRenderer(tileOverlay: radar)
+                renderer.alpha = 0.7
+                return renderer
             case let tiles as MKTileOverlay:
                 let renderer = MKTileOverlayRenderer(tileOverlay: tiles)
                 renderer.alpha = 0.92
@@ -225,7 +264,13 @@ struct FlightMapView: UIViewRepresentable {
                 return renderer
             case let polygon as MKPolygon:
                 let renderer = MKPolygonRenderer(polygon: polygon)
-                if let airspaceClass = airspaceClassByOverlay[ObjectIdentifier(polygon)] {
+                if let hazard = hazardByOverlay[ObjectIdentifier(polygon)] {
+                    let color = Self.hazardColor(hazard)
+                    renderer.strokeColor = color.withAlphaComponent(0.8)
+                    renderer.fillColor = color.withAlphaComponent(0.10)
+                    renderer.lineWidth = 1.6
+                    renderer.lineDashPattern = [8, 5]
+                } else if let airspaceClass = airspaceClassByOverlay[ObjectIdentifier(polygon)] {
                     // Chart-convention colors: B solid blue, C solid magenta,
                     // D dashed blue. Light fills keep the base map readable.
                     switch airspaceClass {
@@ -251,6 +296,18 @@ struct FlightMapView: UIViewRepresentable {
                 return renderer
             default:
                 return MKOverlayRenderer(overlay: overlay)
+            }
+        }
+
+        /// Rough chart conventions: convective hot, icing cold, turbulence
+        /// amber, IFR/obscuration muted.
+        static func hazardColor(_ hazard: String) -> UIColor {
+            switch hazard.uppercased() {
+            case let h where h.contains("CONVECTIVE") || h.contains("TS"): .systemRed
+            case let h where h.contains("ICE") || h.contains("FZLVL"): .systemCyan
+            case let h where h.contains("TURB") || h.contains("LLWS"): .systemOrange
+            case let h where h.contains("IFR") || h.contains("OBSCN"): .systemIndigo
+            default: .systemYellow
             }
         }
 

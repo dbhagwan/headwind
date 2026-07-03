@@ -45,7 +45,16 @@ public struct PlanSummary: Hashable, Sendable {
 
 public enum LegCalculator {
     /// Computes legs and totals for an ordered list of waypoints.
-    public static func plan(waypoints: [Waypoint], performance: CruisePerformance? = nil) -> PlanSummary {
+    ///
+    /// - Parameter windProvider: optional per-location wind source (e.g.
+    ///   interpolated winds aloft at each leg midpoint). When it returns a
+    ///   wind, that overrides the single wind in `performance` for that leg;
+    ///   when it returns nil the performance wind is used.
+    public static func plan(
+        waypoints: [Waypoint],
+        performance: CruisePerformance? = nil,
+        windProvider: ((Coordinate) -> (windFromDeg: Double, windSpeedKts: Double)?)? = nil
+    ) -> PlanSummary {
         var legs: [Leg] = []
 
         for (from, to) in zip(waypoints, waypoints.dropFirst()) {
@@ -57,12 +66,15 @@ public enum LegCalculator {
             var ete: Double?
             var fuel: Double?
 
+            let midpoint = NavMath.midpoint(from.coordinate, to.coordinate)
+            let legWind = windProvider?(midpoint)
+
             if let perf = performance,
                let solution = WindTriangle.solve(
                    trueCourseDeg: course,
                    trueAirspeedKts: perf.trueAirspeedKts,
-                   windFromDeg: perf.windFromDeg,
-                   windSpeedKts: perf.windSpeedKts
+                   windFromDeg: legWind?.windFromDeg ?? perf.windFromDeg,
+                   windSpeedKts: legWind?.windSpeedKts ?? perf.windSpeedKts
                ) {
                 heading = solution.trueHeadingDeg
                 groundSpeed = solution.groundSpeedKts

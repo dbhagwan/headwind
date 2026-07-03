@@ -15,6 +15,8 @@ struct MapScreen: View {
     @AppStorage("map.chartLayer") private var chartLayerRaw = ChartLayer.none.rawValue
     @AppStorage("map.showsTFRs") private var showsTFRs = true
     @AppStorage("map.showsAirspace") private var showsAirspace = true
+    @AppStorage("map.showsRadar") private var showsRadar = false
+    @AppStorage("map.showsHazards") private var showsHazards = true
 
     @State private var showsImagery = false
     @State private var visibleRegion: MKCoordinateRegion?
@@ -36,6 +38,8 @@ struct MapScreen: View {
             showsImagery: showsImagery,
             tfrs: tfrService.tfrs,
             showsTFRs: showsTFRs,
+            showsRadar: showsRadar,
+            hazards: showsHazards ? weather.airSigmets : [],
             airspaces: chartLayer == .none && showsAirspace ? airspaceService.all : [],
             cameraCommand: cameraCommand,
             onRegionChange: { region in
@@ -80,6 +84,7 @@ struct MapScreen: View {
                 }
             }
             await tfrService.refresh()
+            await weather.refreshAirSigmets()
         }
     }
 
@@ -130,6 +135,8 @@ struct MapScreen: View {
                             Text(layer.title).tag(layer.rawValue)
                         }
                     }
+                    Toggle("Weather Radar", isOn: $showsRadar)
+                    Toggle("AIRMETs/SIGMETs", isOn: $showsHazards)
                     Toggle("Show TFRs", isOn: $showsTFRs)
                     if chartLayer == .none {
                         Toggle("Airspace B/C/D", isOn: $showsAirspace)
