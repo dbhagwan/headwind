@@ -104,15 +104,23 @@ struct RunwayDiagram: View {
                 Capsule()
                     .fill(.primary.opacity(0.75))
                     .frame(width: 9, height: diameter * 0.72 * runway.relativeLength)
-                    .overlay(alignment: .bottom) {
-                        Text(runway.ident)
-                            .font(.system(size: 8, weight: .bold))
-                            .monospaced()
-                            .foregroundStyle(.background)
-                            .rotationEffect(.degrees(-runway.headingDeg))
-                            .padding(.bottom, 3)
-                    }
                     .rotationEffect(.degrees(runway.headingDeg))
+            }
+
+            // Ident labels sit outside the pavement at each runway's
+            // approach-end azimuth (the "10" end lies on the reciprocal
+            // side), unrotated so they stay legible at any orientation.
+            ForEach(Array(drawable.enumerated()), id: \.offset) { _, runway in
+                let azimuth = (runway.headingDeg + 180) * .pi / 180
+                let radius = diameter * 0.36 * runway.relativeLength + 11
+                Text(runway.ident)
+                    .font(.system(size: 9, weight: .bold))
+                    .monospaced()
+                    .foregroundStyle(.secondary)
+                    .offset(
+                        x: sin(azimuth) * radius,
+                        y: -cos(azimuth) * radius
+                    )
             }
 
             if let windFromDeg {
