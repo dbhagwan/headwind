@@ -73,12 +73,14 @@ xcrun simctl io "$UDID" recordVideo --codec h264 --force "$RAW_VIDEO" &
 REC_PID=$!
 sleep 2
 
-# Map gets the longest dwell; end the recording on content rather than on a
-# terminate so the video doesn't finish on a black frame.
-for tab in map weather plan search logbook more; do
+# Headless-runner Metal renders MapKit slowly (~15s to first tiles), so the
+# tour opens on the instantly-rendering weather cards and CLOSES on the map
+# with the longest dwell — strongest final shot, maximum render time, and
+# the recording ends on content rather than a terminate.
+for tab in weather plan search logbook more map; do
   xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoData -screenshotTab "$tab"
-  if [ "$tab" = "map" ]; then sleep 15; else sleep 7; fi
-  if [ "$tab" != "more" ]; then
+  if [ "$tab" = "map" ]; then sleep 20; else sleep 7; fi
+  if [ "$tab" != "map" ]; then
     xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
     sleep 1
   fi
