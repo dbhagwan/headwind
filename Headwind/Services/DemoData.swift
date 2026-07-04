@@ -10,6 +10,15 @@ enum DemoData {
         ProcessInfo.processInfo.arguments.contains("-demoData")
     }
 
+    /// `-screenshotAirport KSFO` → "KSFO"; used by capture automation to
+    /// open an airport detail page directly.
+    static var screenshotAirportIdent: String? {
+        let args = ProcessInfo.processInfo.arguments
+        guard let index = args.firstIndex(of: "-screenshotAirport"),
+              index + 1 < args.count else { return nil }
+        return args[index + 1]
+    }
+
     static func seedIfNeeded(plan: PlanStore, airports: AirportStore, context: ModelContext) {
         guard isEnabled else { return }
 

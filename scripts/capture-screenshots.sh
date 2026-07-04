@@ -54,6 +54,14 @@ for tab in map plan weather logbook more search; do
   sleep 2
 done
 
+# Airport detail (hero header + runway diagram) — only reachable by
+# navigation, so the app deep-opens it via launch argument.
+xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoData -screenshotTab search -screenshotAirport KSFO
+sleep 12
+xcrun simctl io "$UDID" screenshot "$OUT_DIR/airport.png"
+xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
+sleep 2
+
 ls -la "$OUT_DIR"
 
 # --- Demo video: one continuous recording touring every tab -----------------
@@ -77,9 +85,14 @@ sleep 2
 # tour opens on the instantly-rendering weather cards and CLOSES on the map
 # with the longest dwell — strongest final shot, maximum render time, and
 # the recording ends on content rather than a terminate.
-for tab in weather plan search logbook more map; do
-  xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoData -screenshotTab "$tab"
-  if [ "$tab" = "map" ]; then sleep 20; else sleep 7; fi
+for tab in weather plan airport logbook more map; do
+  if [ "$tab" = "airport" ]; then
+    xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoData -screenshotTab search -screenshotAirport KSFO
+    sleep 9
+  else
+    xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoData -screenshotTab "$tab"
+    if [ "$tab" = "map" ]; then sleep 20; else sleep 7; fi
+  fi
   if [ "$tab" != "map" ]; then
     xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
     sleep 1

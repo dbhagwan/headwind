@@ -26,9 +26,11 @@ Captured automatically in CI on the iOS 26 simulator (`.github/workflows/screens
 | --- | --- | --- |
 | ![Map](docs/screenshots/map.png) | ![Plan](docs/screenshots/plan.png) | ![Weather](docs/screenshots/weather.png) |
 
-| Logbook | Airport search | Tools |
+| Airport (runway diagram) | Logbook | Airport search |
 | --- | --- | --- |
-| ![Logbook](docs/screenshots/logbook.png) | ![Search](docs/screenshots/search.png) | ![More](docs/screenshots/more.png) |
+| ![Airport](docs/screenshots/airport.png) | ![Logbook](docs/screenshots/logbook.png) | ![Search](docs/screenshots/search.png) |
+
+Full tour video: [docs/media/demo.mp4](docs/media/demo.mp4)
 
 ## Features (v0.1)
 

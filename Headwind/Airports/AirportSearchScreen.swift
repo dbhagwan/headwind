@@ -6,6 +6,7 @@ struct AirportSearchScreen: View {
     @Environment(LocationService.self) private var location
 
     @State private var query = ""
+    @State private var path = NavigationPath()
 
     private var results: [Airport] {
         if query.isEmpty {
@@ -18,7 +19,7 @@ struct AirportSearchScreen: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             List(results) { airport in
                 NavigationLink(value: airport) {
                     AirportRow(airport: airport)
@@ -34,6 +35,15 @@ struct AirportSearchScreen: View {
                     ProgressView("Loading airport directory…")
                 } else if results.isEmpty {
                     ContentUnavailableView.search(text: query)
+                }
+            }
+            .task {
+                // Screenshot automation: -screenshotAirport KSFO opens that
+                // airport's page directly (simctl can't tap).
+                guard let ident = DemoData.screenshotAirportIdent, path.isEmpty else { return }
+                await airports.load()
+                if let airport = airports.airport(ident: ident) {
+                    path.append(airport)
                 }
             }
         }
