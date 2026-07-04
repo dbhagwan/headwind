@@ -20,6 +20,47 @@ struct AirportDetailScreen: View {
                     .listRowBackground(Color.clear)
             }
 
+            // Facility first (identity → runways → conditions): the diagram
+            // is the page's signature visual and belongs above the fold.
+            if !airport.runways.isEmpty {
+                Section("Runways") {
+                    if airport.runways.contains(where: { $0.leHeadingDegT != nil }) {
+                        HStack {
+                            Spacer()
+                            RunwayDiagram(
+                                runways: airport.runways,
+                                windFromDeg: metar?.windDirectionDeg.map(Double.init),
+                                windSpeedKts: metar?.windSpeedKts.map(Double.init)
+                            )
+                            Spacer()
+                        }
+                        .padding(.vertical, 6)
+                        .listRowBackground(Color.clear)
+                    }
+                    ForEach(airport.runways) { runway in
+                        LabeledContent(runway.ident) {
+                            Text("\(runway.lengthFt.formatted()) ft · \(runway.surface)")
+                        }
+                    }
+                }
+            }
+
+            if let metar, let dir = metar.windDirectionDeg,
+               let speed = metar.windSpeedKts, speed > 0 {
+                let ends = RunwayWindCalculator.evaluate(
+                    runways: airport.runways,
+                    windFromDegT: Double(dir),
+                    windSpeedKts: Double(speed)
+                )
+                if !ends.isEmpty {
+                    Section("Runway Winds") {
+                        ForEach(Array(ends.enumerated()), id: \.element.id) { index, end in
+                            RunwayWindRow(end: end, isBest: index == 0)
+                        }
+                    }
+                }
+            }
+
             Section("Weather") {
                 if let metar {
                     MetarSummaryRows(metar: metar)
@@ -60,45 +101,6 @@ struct AirportDetailScreen: View {
                 ))
                 if let iata = airport.iata {
                     LabeledContent("IATA", value: iata)
-                }
-            }
-
-            if !airport.runways.isEmpty {
-                Section("Runways") {
-                    if airport.runways.contains(where: { $0.leHeadingDegT != nil }) {
-                        HStack {
-                            Spacer()
-                            RunwayDiagram(
-                                runways: airport.runways,
-                                windFromDeg: metar?.windDirectionDeg.map(Double.init),
-                                windSpeedKts: metar?.windSpeedKts.map(Double.init)
-                            )
-                            Spacer()
-                        }
-                        .padding(.vertical, 6)
-                        .listRowBackground(Color.clear)
-                    }
-                    ForEach(airport.runways) { runway in
-                        LabeledContent(runway.ident) {
-                            Text("\(runway.lengthFt.formatted()) ft · \(runway.surface)")
-                        }
-                    }
-                }
-            }
-
-            if let metar, let dir = metar.windDirectionDeg,
-               let speed = metar.windSpeedKts, speed > 0 {
-                let ends = RunwayWindCalculator.evaluate(
-                    runways: airport.runways,
-                    windFromDegT: Double(dir),
-                    windSpeedKts: Double(speed)
-                )
-                if !ends.isEmpty {
-                    Section("Runway Winds") {
-                        ForEach(Array(ends.enumerated()), id: \.element.id) { index, end in
-                            RunwayWindRow(end: end, isBest: index == 0)
-                        }
-                    }
                 }
             }
 
