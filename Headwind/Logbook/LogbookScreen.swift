@@ -52,33 +52,11 @@ struct LogbookScreen: View {
     }
 
     private var totalsCard: some View {
-        HStack(spacing: 24) {
-            VStack(spacing: 4) {
-                Text("Total Time")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Text(String(format: "%.1f h", totalHours))
-                    .font(.headline)
-                    .monospacedDigit()
-            }
-            VStack(spacing: 4) {
-                Text("Flights")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Text("\(entries.count)")
-                    .font(.headline)
-                    .monospacedDigit()
-            }
-            VStack(spacing: 4) {
-                Text("Landings")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Text("\(totalLandings)")
-                    .font(.headline)
-                    .monospacedDigit()
-            }
+        HStack(spacing: 8) {
+            HeroStat(value: String(format: "%.1f", totalHours), unit: "HRS", label: "Total Time")
+            HeroStat(value: "\(entries.count)", unit: "", label: "Flights")
+            HeroStat(value: "\(totalLandings)", unit: "", label: "Landings")
         }
-        .frame(maxWidth: .infinity)
         .hwGlassCard()
     }
 
@@ -93,6 +71,13 @@ private struct LogEntryRow: View {
     let entry: LogEntry
 
     var body: some View {
+        HStack(spacing: 12) {
+            IconBadge(systemName: entry.nightHours > 0 ? "moon.stars.fill" : "airplane", tint: entry.nightHours > 0 ? .indigo : .blue)
+            entryDetails
+        }
+    }
+
+    private var entryDetails: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text("\(entry.fromIdent) → \(entry.toIdent)")
@@ -100,8 +85,11 @@ private struct LogEntryRow: View {
                     .monospaced()
                 Spacer()
                 Text(String(format: "%.1f h", entry.totalHours))
-                    .font(.subheadline)
+                    .font(.footnote.weight(.bold))
                     .monospacedDigit()
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(.blue.opacity(0.14), in: .capsule)
             }
             HStack {
                 Text(entry.date, style: .date)

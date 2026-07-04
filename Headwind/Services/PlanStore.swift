@@ -66,6 +66,23 @@ final class PlanStore {
         waypoints.map(\.ident).joined(separator: " ")
     }
 
+    /// The wind the summary actually applied to a leg (aloft-interpolated or
+    /// the manual entry) — for display alongside the computed numbers.
+    func windUsed(for leg: Leg) -> (directionFromDeg: Double, speedKts: Double)? {
+        if useWindsAloft && !aloftStations.isEmpty,
+           let wind = WindsAloftInterpolator.wind(
+               at: NavMath.midpoint(leg.from.coordinate, leg.to.coordinate),
+               altitudeFt: cruiseAltitudeFt,
+               stations: aloftStations
+           ) {
+            return (wind.directionFromDeg, wind.speedKts)
+        }
+        if performance.windSpeedKts > 0 {
+            return (performance.windFromDeg, performance.windSpeedKts)
+        }
+        return nil
+    }
+
     private static let waypointsKey = "plan.waypoints"
     private static let performanceKey = "plan.performance"
     private static let cruiseAltitudeKey = "plan.cruiseAltitudeFt"

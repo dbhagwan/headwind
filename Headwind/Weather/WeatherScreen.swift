@@ -151,10 +151,12 @@ struct MetarCard: View {
                 }
 
                 HStack(spacing: 16) {
-                    conditionItem(
-                        icon: "wind",
-                        text: windText(metar)
-                    )
+                    HStack(spacing: 6) {
+                        if let dir = metar.windDirectionDeg, (metar.windSpeedKts ?? 0) > 0 {
+                            WindArrow(directionFromDeg: Double(dir), size: 22)
+                        }
+                        conditionItem(icon: "wind", text: windText(metar))
+                    }
                     if let vis = metar.visibilitySM {
                         conditionItem(icon: "eye", text: "\(vis.formatted()) SM")
                     }
@@ -182,6 +184,15 @@ struct MetarCard: View {
             }
         }
         .hwGlassCard()
+        .overlay(alignment: .leading) {
+            if let metar {
+                Capsule()
+                    .fill(metar.flightCategory.color.gradient)
+                    .frame(width: 4)
+                    .padding(.vertical, 16)
+                    .padding(.leading, 7)
+            }
+        }
     }
 
     private var metar: Metar? { weather.metar(for: ident) }

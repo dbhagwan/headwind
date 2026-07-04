@@ -65,6 +65,19 @@ struct AirportDetailScreen: View {
 
             if !airport.runways.isEmpty {
                 Section("Runways") {
+                    if airport.runways.contains(where: { $0.leHeadingDegT != nil }) {
+                        HStack {
+                            Spacer()
+                            RunwayDiagram(
+                                runways: airport.runways,
+                                windFromDeg: metar?.windDirectionDeg.map(Double.init),
+                                windSpeedKts: metar?.windSpeedKts.map(Double.init)
+                            )
+                            Spacer()
+                        }
+                        .padding(.vertical, 6)
+                        .listRowBackground(Color.clear)
+                    }
                     ForEach(airport.runways) { runway in
                         LabeledContent(runway.ident) {
                             Text("\(runway.lengthFt.formatted()) ft · \(runway.surface)")
@@ -91,12 +104,23 @@ struct AirportDetailScreen: View {
 
             if !airport.frequencies.isEmpty {
                 Section("Frequencies") {
-                    ForEach(airport.frequencies) { freq in
-                        LabeledContent(freq.name) {
-                            Text(freq.mhz.formatted(.number.precision(.fractionLength(1...3))))
-                                .monospacedDigit()
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                        ForEach(airport.frequencies) { freq in
+                            VStack(spacing: 2) {
+                                Text(freq.mhz.formatted(.number.precision(.fractionLength(1...3))))
+                                    .font(.system(.callout, design: .rounded).weight(.bold))
+                                    .monospacedDigit()
+                                Text(freq.name.uppercased())
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .foregroundStyle(.secondary)
+                                    .tracking(0.5)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(.secondary.opacity(0.1), in: .rect(cornerRadius: 10))
                         }
                     }
+                    .padding(.vertical, 4)
                 }
             }
 
@@ -137,20 +161,47 @@ struct AirportDetailScreen: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(airport.name)
-                    .font(.title2.weight(.bold))
+        VStack(spacing: 14) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(airport.ident)
+                        .font(.system(.largeTitle, design: .rounded).weight(.heavy))
+                        .monospaced()
+                    Text(airport.name)
+                        .font(.subheadline.weight(.medium))
+                        .lineLimit(2)
+                    Text("\(airport.city.isEmpty ? airport.state : "\(airport.city), \(airport.state)") · \(kindLabel)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 Spacer()
-                if let category = metar?.flightCategory {
-                    FlightCategoryBadge(category: category)
+                VStack(alignment: .trailing, spacing: 8) {
+                    if let category = metar?.flightCategory {
+                        FlightCategoryBadge(category: category)
+                    }
+                    if let dir = metar?.windDirectionDeg, let speed = metar?.windSpeedKts, speed > 0 {
+                        WindArrow(directionFromDeg: Double(dir), speedKts: Double(speed), size: 30)
+                    }
                 }
             }
-            Text("\(airport.city.isEmpty ? airport.state : "\(airport.city), \(airport.state)") · \(kindLabel)")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+
+            HStack(spacing: 8) {
+                HeroStat(value: "\(airport.elevationFt)", unit: "FT", label: "Elevation")
+                if let metar, let temp = metar.temperatureC, let altim = metar.altimeterInHg {
+                    HeroStat(
+                        value: "\(Int(DensityAltitude.densityAltitudeFt(elevationFt: Double(airport.elevationFt), altimeterInHg: altim, temperatureC: temp).rounded()))",
+                        unit: "FT",
+                        label: "Density Alt"
+                    )
+                }
+                if let longest = airport.longestRunwayFt {
+                    HeroStat(value: longest.formatted(), unit: "FT", label: "Longest Rwy")
+                }
+            }
         }
-        .padding()
+        .hwGlassCard()
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
     }
 
     private var magVariationText: String {

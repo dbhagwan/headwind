@@ -5,46 +5,48 @@ struct MoreScreen: View {
         NavigationStack {
             List {
                 Section("Tools") {
-                    NavigationLink {
+                    toolRow("Weight & Balance", icon: "scalemass.fill", tint: .blue) {
                         WeightBalanceScreen()
-                    } label: {
-                        Label("Weight & Balance", systemImage: "scalemass")
                     }
-                    NavigationLink {
+                    toolRow("Checklists", icon: "checklist", tint: .green) {
                         ChecklistScreen()
-                    } label: {
-                        Label("Checklists", systemImage: "checklist")
                     }
-                    NavigationLink {
+                    toolRow("Winds Aloft", icon: "wind", tint: .cyan) {
                         WindsAloftScreen()
-                    } label: {
-                        Label("Winds Aloft", systemImage: "wind")
                     }
-                    NavigationLink {
+                    toolRow("Airspace & TFRs", icon: "exclamationmark.triangle.fill", tint: .orange) {
                         AirspaceScreen()
-                    } label: {
-                        Label("Airspace & TFRs", systemImage: "exclamationmark.triangle")
                     }
-                    NavigationLink {
+                    toolRow("AI Briefing", icon: "sparkles", tint: .purple) {
                         BriefingScreen()
-                    } label: {
-                        Label("AI Briefing", systemImage: "sparkles")
                     }
                 }
                 Section("App") {
-                    NavigationLink {
+                    toolRow("Settings", icon: "gearshape.fill", tint: .gray) {
                         SettingsScreen()
-                    } label: {
-                        Label("Settings", systemImage: "gearshape")
                     }
-                    NavigationLink {
+                    toolRow("About Headwind", icon: "info", tint: .indigo) {
                         AboutScreen()
-                    } label: {
-                        Label("About Headwind", systemImage: "info.circle")
                     }
                 }
             }
             .navigationTitle("More")
+        }
+    }
+
+    private func toolRow<Destination: View>(
+        _ title: String,
+        icon: String,
+        tint: Color,
+        @ViewBuilder destination: @escaping () -> Destination
+    ) -> some View {
+        NavigationLink {
+            destination()
+        } label: {
+            HStack(spacing: 12) {
+                IconBadge(systemName: icon, tint: tint)
+                Text(title)
+            }
         }
     }
 }

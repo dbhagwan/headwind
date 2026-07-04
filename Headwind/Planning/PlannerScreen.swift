@@ -28,6 +28,14 @@ struct PlannerScreen: View {
 
         NavigationStack {
             List {
+                if !plan.summary.legs.isEmpty {
+                    Section {
+                        PlanHeroCard(summary: plan.summary, fuelCheck: plan.fuelCheck, route: plan.routeString)
+                            .listRowInsets(EdgeInsets())
+                            .listRowBackground(Color.clear)
+                    }
+                }
+
                 Section("Route") {
                     HStack {
                         TextField("e.g. KPAO OSI KMRY (airports & VORs)", text: $routeInput)
@@ -40,10 +48,36 @@ struct PlannerScreen: View {
                             .disabled(routeInput.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
 
-                    ForEach(plan.waypoints) { waypoint in
-                        HStack {
-                            Image(systemName: "mappin.circle.fill")
-                                .foregroundStyle(.purple)
+                    if plan.waypoints.isEmpty {
+                        VStack(spacing: 12) {
+                            Image(systemName: "point.topleft.down.to.point.bottomright.curvepath")
+                                .font(.system(size: 34, weight: .medium))
+                                .foregroundStyle(.tint)
+                            Text("Plan your first flight")
+                                .font(.headline)
+                            Text("Type airport or VOR identifiers above — Headwind computes magnetic headings, winds, time, and fuel per leg.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                            Button("Try a Bay Tour · KPAO KSFO KOAK KSJC") {
+                                routeInput = "KPAO KSFO KOAK KSJC"
+                                applyRoute()
+                            }
+                            .font(.footnote.weight(.semibold))
+                            .buttonStyle(.bordered)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 18)
+                    }
+
+                    ForEach(Array(plan.waypoints.enumerated()), id: \.element.id) { index, waypoint in
+                        HStack(spacing: 12) {
+                            Text("\(index + 1)")
+                                .font(.caption.weight(.bold))
+                                .monospacedDigit()
+                                .foregroundStyle(.white)
+                                .frame(width: 22, height: 22)
+                                .background(Color.purple.gradient, in: .circle)
                             Text(waypoint.ident)
                                 .font(.body.weight(.semibold))
                                 .monospaced()
@@ -133,18 +167,12 @@ struct PlannerScreen: View {
                 if !plan.summary.legs.isEmpty {
                     Section {
                         ForEach(plan.summary.legs) { leg in
-                            LegRow(leg: leg)
+                            LegRow(leg: leg, wind: plan.windUsed(for: leg))
                         }
                     } header: {
                         Text("Legs")
                     } footer: {
-                        Text("Courses (MC) and headings (MH) are **magnetic**, using WMM-2025 variation at each leg's midpoint.")
-                    }
-
-                    Section {
-                        TotalsCard(summary: plan.summary, fuelCheck: plan.fuelCheck)
-                            .listRowInsets(EdgeInsets())
-                            .listRowBackground(Color.clear)
+                        Text("Headings are **magnetic** (WMM-2025 at each leg midpoint). Arrows show the wind each leg was solved with.")
                     }
                 }
             }
@@ -212,6 +240,7 @@ struct PlannerScreen: View {
 
 private struct LegRow: View {
     let leg: Leg
+    let wind: (directionFromDeg: Double, speedKts: Double)?
 
     /// WMM declination at the leg midpoint, so long legs across changing
     /// variation stay honest.
@@ -224,85 +253,114 @@ private struct LegRow: View {
 
     var body: some View {
         let dec = declination
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text("\(leg.from.ident) → \(leg.to.ident)")
-                    .font(.subheadline.weight(.semibold))
-                    .monospaced()
-                Spacer()
-                Text("\(Int(leg.distanceNM.rounded())) NM")
-                    .font(.subheadline)
+        let heading = leg.trueHeadingDeg ?? leg.trueCourseDeg
+        HStack(spacing: 12) {
+            VStack(spacing: 2) {
+                Text(String(format: "%03d°", Int(WMM.magneticFromTrue(heading, declinationDeg: dec).rounded())))
+                    .font(.system(.title3, design: .rounded).weight(.bold))
                     .monospacedDigit()
+                Text(leg.trueHeadingDeg != nil ? "FLY MH" : "MC")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(.secondary)
+                    .tracking(0.5)
             }
-            HStack(spacing: 14) {
-                metric("MC", String(format: "%03d°", Int(WMM.magneticFromTrue(leg.trueCourseDeg, declinationDeg: dec).rounded())))
-                if let heading = leg.trueHeadingDeg {
-                    metric("MH", String(format: "%03d°", Int(WMM.magneticFromTrue(heading, declinationDeg: dec).rounded())))
-                }
-                if let gs = leg.groundSpeedKts {
-                    metric("GS", "\(Int(gs.rounded())) kt")
-                }
-                if let ete = leg.eteMinutes {
-                    metric("ETE", formatMinutes(ete))
-                }
-                if let fuel = leg.fuelGal {
-                    metric("Fuel", String(format: "%.1f gal", fuel))
-                }
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
-        .padding(.vertical, 2)
-    }
+            .frame(width: 62, height: 52)
+            .background(Color.purple.opacity(0.12), in: .rect(cornerRadius: 12))
 
-    private func metric(_ label: String, _ value: String) -> some View {
-        HStack(spacing: 3) {
-            Text(label).fontWeight(.semibold)
-            Text(value).monospacedDigit()
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("\(leg.from.ident) → \(leg.to.ident)")
+                        .font(.subheadline.weight(.semibold))
+                        .monospaced()
+                    Spacer()
+                    Text("\(Int(leg.distanceNM.rounded())) NM")
+                        .font(.footnote.weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+                HStack(spacing: 6) {
+                    if let gs = leg.groundSpeedKts {
+                        MetricChip(label: "GS KT", value: "\(Int(gs.rounded()))")
+                    }
+                    if let ete = leg.eteMinutes {
+                        MetricChip(label: "ETE", value: formatMinutes(ete))
+                    }
+                    if let fuel = leg.fuelGal {
+                        MetricChip(label: "GAL", value: String(format: "%.1f", fuel))
+                    }
+                    Spacer()
+                    if let wind {
+                        WindArrow(directionFromDeg: wind.directionFromDeg, speedKts: wind.speedKts, size: 26)
+                    }
+                }
+            }
         }
+        .padding(.vertical, 4)
     }
 }
 
-private struct TotalsCard: View {
+/// The plan's headline: route flow, the three numbers that matter, and a
+/// fuel-margin gauge.
+private struct PlanHeroCard: View {
     let summary: PlanSummary
     let fuelCheck: FuelCheck?
+    let route: String
 
     var body: some View {
-        VStack(spacing: 14) {
-            HStack(spacing: 24) {
-                total("Distance", "\(Int(summary.totalDistanceNM.rounded())) NM")
+        VStack(spacing: 16) {
+            Text(route.replacingOccurrences(of: " ", with: "  →  "))
+                .font(.footnote.weight(.bold))
+                .monospaced()
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 8) {
+                HeroStat(value: "\(Int(summary.totalDistanceNM.rounded()))", unit: "NM", label: "Distance")
                 if let ete = summary.totalEteMinutes {
-                    total("Time", formatMinutes(ete))
+                    HeroStat(value: formatMinutes(ete), unit: "", label: "En Route")
                 }
                 if let fuel = summary.totalFuelGal {
-                    total("Fuel", String(format: "%.1f gal", fuel))
+                    HeroStat(
+                        value: String(format: "%.1f", fuel),
+                        unit: "GAL",
+                        label: "Trip Fuel",
+                        tint: fuelCheck.map { $0.isSufficient ? .primary : Color.red } ?? .primary
+                    )
                 }
             }
-            if let check = fuelCheck {
-                Label {
-                    Text(check.isSufficient
-                         ? "Fuel OK — lands with \(String(format: "%.1f", check.marginGal)) gal beyond the \(Int(check.reserveGal.rounded())) gal reserve"
-                         : "SHORT \(String(format: "%.1f", abs(check.marginGal))) gal of trip + reserve — add fuel or a stop")
-                        .font(.caption.weight(.semibold))
-                } icon: {
-                    Image(systemName: check.isSufficient ? "fuelpump.circle.fill" : "exclamationmark.octagon.fill")
-                }
-                .foregroundStyle(check.isSufficient ? .green : .red)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .hwGlassCard()
-    }
 
-    private func total(_ label: String, _ value: String) -> some View {
-        VStack(spacing: 4) {
-            Text(label)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.headline)
-                .monospacedDigit()
+            if let check = fuelCheck {
+                VStack(spacing: 6) {
+                    GeometryReader { geo in
+                        let fraction = min(1, max(0, check.totalRequiredGal / max(check.onboardGal, 0.1)))
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(.secondary.opacity(0.15))
+                            Capsule()
+                                .fill((check.isSufficient ? Color.green : Color.red).gradient)
+                                .frame(width: geo.size.width * fraction)
+                        }
+                    }
+                    .frame(height: 8)
+
+                    HStack {
+                        Label(
+                            check.isSufficient
+                                ? "Lands with +\(String(format: "%.1f", check.marginGal)) gal beyond reserve"
+                                : "SHORT \(String(format: "%.1f", abs(check.marginGal))) gal — add fuel or a stop",
+                            systemImage: check.isSufficient ? "fuelpump.fill" : "exclamationmark.octagon.fill"
+                        )
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(check.isSufficient ? .green : .red)
+                        Spacer()
+                        Text("\(Int(check.onboardGal.rounded())) gal aboard")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
         }
+        .hwGlassCard()
     }
 }
 
