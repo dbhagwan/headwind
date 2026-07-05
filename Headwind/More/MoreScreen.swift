@@ -11,6 +11,9 @@ struct MoreScreen: View {
                     toolRow("Checklists", icon: "checklist", tint: .green) {
                         ChecklistScreen()
                     }
+                    toolRow("Track Logs", icon: "point.bottomleft.forward.to.point.topright.scurvepath", tint: .teal) {
+                        TracksScreen()
+                    }
                     toolRow("Winds Aloft", icon: "wind", tint: .cyan) {
                         WindsAloftScreen()
                     }

@@ -110,10 +110,16 @@ device profiling, the TestFlight pilot beta, and store packaging.
 
 ## 2.x — In flight (capability releases)
 
-**2.0 Track logging**
-- GPS breadcrumb recording with auto takeoff/landing detection
-- Auto-filled logbook entries (times, day/night, landings) — pilot confirms
-- Track replay on the map; GPX/KML export
+**2.0 Track logging** ✅ (shipped)
+- ✅ GPS breadcrumb recording (map record button, source-thinned points,
+  durable per-track JSON store)
+- ✅ Auto takeoff/landing detection: speed hysteresis with sustain windows
+  (taxi, gusts, and touch-and-goes handled — tested)
+- ✅ Logbook auto-fill: airborne hours, landing count, nearest-airport
+  from/to idents — pilot confirms in the editor
+- ✅ Track replay: route + start/end markers on a map, stat trio,
+  per-flight breakdown
+- GPX/KML export still to come
 
 **2.1 ADS-B In (GDL90 over UDP — Stratux, Sentry, Stratus)**
 - Traffic: relative-altitude targets with trend vectors and alerting

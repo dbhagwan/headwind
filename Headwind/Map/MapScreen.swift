@@ -11,6 +11,7 @@ struct MapScreen: View {
     @Environment(WeatherService.self) private var weather
     @Environment(TFRService.self) private var tfrService
     @Environment(AirspaceService.self) private var airspaceService
+    @Environment(TrackRecorder.self) private var recorder
 
     @AppStorage("map.chartLayer") private var chartLayerRaw = ChartLayer.none.rawValue
     @AppStorage("map.showsTFRs") private var showsTFRs = true
@@ -26,6 +27,7 @@ struct MapScreen: View {
     @State private var selectedPirep: Pirep?
     @State private var cameraCommand: MapCameraCommand?
     @State private var showsOfflineSheet = false
+    @State private var finishedTrack: TrackLog?
 
     private var chartLayer: ChartLayer {
         ChartLayer(rawValue: chartLayerRaw) ?? .none
@@ -80,6 +82,11 @@ struct MapScreen: View {
         .sheet(item: $selectedPirep) { pirep in
             PirepDetailSheet(pirep: pirep)
                 .presentationDetents([.medium])
+        }
+        .sheet(item: $finishedTrack) { track in
+            NavigationStack {
+                TrackDetailScreen(track: track)
+            }
         }
         .task {
             location.start()
@@ -173,6 +180,20 @@ struct MapScreen: View {
                 } label: {
                     Image(systemName: "location.fill")
                         .font(.title3)
+                        .frame(width: 44, height: 44)
+                }
+                .glassEffect(.regular.interactive(), in: .circle)
+
+                Button {
+                    if recorder.isRecording {
+                        finishedTrack = recorder.stop()
+                    } else {
+                        recorder.start()
+                    }
+                } label: {
+                    Image(systemName: recorder.isRecording ? "stop.circle.fill" : "record.circle")
+                        .font(.title3)
+                        .foregroundStyle(recorder.isRecording ? .red : .primary)
                         .frame(width: 44, height: 44)
                 }
                 .glassEffect(.regular.interactive(), in: .circle)

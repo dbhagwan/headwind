@@ -119,7 +119,11 @@ struct LogEntryEditor: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
 
-    @State private var entry = LogEntry()
+    @State private var entry: LogEntry
+
+    init(prefilled: LogEntry? = nil) {
+        _entry = State(initialValue: prefilled ?? LogEntry())
+    }
 
     var body: some View {
         NavigationStack {
