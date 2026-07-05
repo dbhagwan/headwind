@@ -79,13 +79,56 @@ struct RunwayDiagram: View {
     var windSpeedKts: Double? = nil
     var diameter: CGFloat = 170
 
-    private var drawable: [(ident: String, headingDeg: Double, relativeLength: Double)] {
-        let usable = runways.compactMap { runway -> (String, Double, Int)? in
+    private struct DrawableRunway {
+        let ident: String
+        let headingDeg: Double
+        let relativeLength: Double
+        /// Perpendicular offset in points so parallels sit side by side
+        /// like the real layout (and their labels never collide).
+        let lateral: CGFloat
+    }
+
+    private var drawable: [DrawableRunway] {
+        let usable = runways.compactMap { runway -> (ident: String, heading: Double, length: Int)? in
             guard let heading = runway.leHeadingDegT else { return nil }
             return (runway.leIdent ?? runway.ident, heading, runway.lengthFt)
         }
-        guard let maxLen = usable.map(\.2).max(), maxLen > 0 else { return [] }
-        return usable.map { ($0.0, $0.1, max(0.45, Double($0.2) / Double(maxLen))) }
+        guard let maxLen = usable.map(\.length).max(), maxLen > 0 else { return [] }
+
+        // Group parallels (headings within ~8°) and spread each group
+        // laterally, ordered L → C → R like the pavement.
+        func suffixRank(_ ident: String) -> Int {
+            switch ident.last {
+            case "L": 0
+            case "C": 1
+            case "R": 2
+            default: 1
+            }
+        }
+        var groups: [Int: [Int]] = [:]
+        for (index, runway) in usable.enumerated() {
+            let bucket = Int((runway.heading / 8.0).rounded())
+            groups[bucket, default: []].append(index)
+        }
+
+        var lateral = [CGFloat](repeating: 0, count: usable.count)
+        for members in groups.values {
+            let ordered = members.sorted {
+                suffixRank(usable[$0].ident) < suffixRank(usable[$1].ident)
+            }
+            for (position, index) in ordered.enumerated() {
+                lateral[index] = (CGFloat(position) - CGFloat(ordered.count - 1) / 2) * 14
+            }
+        }
+
+        return usable.enumerated().map { index, runway in
+            DrawableRunway(
+                ident: runway.ident,
+                headingDeg: runway.heading,
+                relativeLength: max(0.45, Double(runway.length) / Double(maxLen)),
+                lateral: lateral[index]
+            )
+        }
     }
 
     var body: some View {
@@ -101,25 +144,31 @@ struct RunwayDiagram: View {
                 .offset(y: -diameter / 2 + 11)
 
             ForEach(Array(drawable.enumerated()), id: \.offset) { _, runway in
+                let headingRad = runway.headingDeg * .pi / 180
                 Capsule()
                     .fill(.primary.opacity(0.75))
-                    .frame(width: 9, height: diameter * 0.72 * runway.relativeLength)
+                    .frame(width: 8, height: diameter * 0.68 * runway.relativeLength)
                     .rotationEffect(.degrees(runway.headingDeg))
+                    .offset(
+                        x: cos(headingRad) * runway.lateral,
+                        y: sin(headingRad) * runway.lateral
+                    )
             }
 
             // Ident labels sit outside the pavement at each runway's
             // approach-end azimuth (the "10" end lies on the reciprocal
-            // side), unrotated so they stay legible at any orientation.
+            // side), unrotated, and carry their runway's lateral offset.
             ForEach(Array(drawable.enumerated()), id: \.offset) { _, runway in
+                let headingRad = runway.headingDeg * .pi / 180
                 let azimuth = (runway.headingDeg + 180) * .pi / 180
-                let radius = diameter * 0.36 * runway.relativeLength + 11
+                let radius = diameter * 0.34 * runway.relativeLength + 12
                 Text(runway.ident)
                     .font(.system(size: 9, weight: .bold))
                     .monospaced()
                     .foregroundStyle(.secondary)
                     .offset(
-                        x: sin(azimuth) * radius,
-                        y: -cos(azimuth) * radius
+                        x: sin(azimuth) * radius + cos(headingRad) * runway.lateral,
+                        y: -cos(azimuth) * radius + sin(headingRad) * runway.lateral
                     )
             }
 
