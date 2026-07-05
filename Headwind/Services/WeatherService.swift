@@ -80,7 +80,12 @@ final class WeatherService {
         defer { isRefreshing = false }
 
         do {
-            let (data, _) = try await session.data(from: components.url!)
+            let (data, response) = try await session.data(from: components.url!)
+            guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+                // Server-side trouble isn't "offline" — keep data, note error.
+                lastError = "Weather service unavailable — showing last data."
+                return
+            }
             let decoded = try JSONDecoder().decode([Metar].self, from: data)
             let now = Date.now
             for metar in decoded {
@@ -95,10 +100,20 @@ final class WeatherService {
             lastError = nil
             isOffline = false
             persist()
+        } catch is CancellationError {
+            // A dismissed screen cancelling its fetch is not a failure.
+        } catch let urlError as URLError where urlError.code == .cancelled {
+            // Same: SwiftUI task cancellation surfaces as URLError.cancelled.
+        } catch let urlError as URLError {
+            lastError = "Couldn't load weather: \(urlError.localizedDescription)"
+            // Only true connectivity loss counts as offline.
+            let offlineCodes: Set<URLError.Code> = [
+                .notConnectedToInternet, .networkConnectionLost, .timedOut,
+                .cannotFindHost, .cannotConnectToHost, .dataNotAllowed,
+            ]
+            isOffline = !metars.isEmpty && offlineCodes.contains(urlError.code)
         } catch {
             lastError = "Couldn't load weather: \(error.localizedDescription)"
-            // Keep showing whatever we already have, flagged as offline.
-            isOffline = !metars.isEmpty
         }
     }
 
@@ -133,12 +148,15 @@ final class WeatherService {
         ]
 
         do {
-            let (data, _) = try await session.data(from: components.url!)
-            if let text = String(data: data, encoding: .utf8)?
-                .trimmingCharacters(in: .whitespacesAndNewlines),
-               !text.isEmpty {
-                tafs[id] = text
-            }
+            let (data, response) = try await session.data(from: components.url!)
+            // Only accept a real 200 with plausible TAF text — an HTML error
+            // page must never be stored (it would persist into the cache).
+            guard (response as? HTTPURLResponse)?.statusCode == 200,
+                  let text = String(data: data, encoding: .utf8)?
+                      .trimmingCharacters(in: .whitespacesAndNewlines),
+                  !text.isEmpty,
+                  !text.hasPrefix("<") else { return }
+            tafs[id] = text
         } catch {
             // TAF is supplementary; keep any previous value silently.
         }
@@ -195,11 +213,14 @@ final class WeatherService {
             let (data, response) = try await session.data(from: components.url!)
             pirepsFetchedAt = .now
             pirepsCenter = center
-            // 204/empty body = no reports in the box.
-            guard (response as? HTTPURLResponse)?.statusCode == 200, !data.isEmpty else {
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            // 204 or empty 200 body = genuinely no reports in the box.
+            if status == 204 || (status == 200 && data.isEmpty) {
                 pireps = []
                 return
             }
+            // A transient 5xx/429 must not erase valid pins — keep the old set.
+            guard status == 200 else { return }
             // Decode per-item so one malformed report can't sink the batch.
             let raw = (try? JSONSerialization.jsonObject(with: data)) as? [Any] ?? []
             let decoder = JSONDecoder()
@@ -220,7 +241,10 @@ final class WeatherService {
             URLQueryItem(name: "level", value: "low"),
             URLQueryItem(name: "fcst", value: forecastHours),
         ]
-        let (data, _) = try await session.data(from: components.url!)
+        let (data, response) = try await session.data(from: components.url!)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+            throw URLError(.badServerResponse)
+        }
         guard let text = String(data: data, encoding: .utf8) else { return [] }
         return WindsAloftParser.parse(text)
     }

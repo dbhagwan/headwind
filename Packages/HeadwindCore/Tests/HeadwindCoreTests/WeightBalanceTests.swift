@@ -51,6 +51,20 @@ final class WeightBalanceTests: XCTestCase {
         XCTAssertFalse(result.isSafe)
     }
 
+    func testLoadingExactlyAtMaxGrossOnEnvelopeEdgeIsLegal() {
+        // 1600 empty + 950 across stations = exactly 2550 lb (max gross),
+        // CG within limits: certified-legal, and consistent with the
+        // strict-> max-weight check.
+        let result = WeightBalanceCalculator.evaluate(
+            profile: profile,
+            stationWeights: ["Front Seats": 340, "Rear Seats": 340, "Fuel": 270]
+        )
+        XCTAssertEqual(result.totalWeightLb, 2550, accuracy: 1e-9)
+        XCTAssertFalse(result.isOverMaxWeight)
+        XCTAssertTrue(result.isWithinEnvelope, "boundary loading must count as inside")
+        XCTAssertTrue(result.isSafe)
+    }
+
     func testPointInPolygon() {
         let envelope = profile.envelope
         XCTAssertTrue(WeightBalanceCalculator.contains(envelope: envelope, cgIn: 40, weightLb: 2000))

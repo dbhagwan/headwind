@@ -6,7 +6,10 @@ name: Data Refresh
 
 on:
   schedule:
-    - cron: "0 12 * * 1" # Mondays 12:00 UTC
+    # FAA cycles flip Thursdays 0901Z; run a few hours after so the new
+    # cycle's data is definitely published (a Monday cron would leave a
+    # 4-day stale window every cycle).
+    - cron: "0 13 * * 4"
   workflow_dispatch:
 
 permissions:

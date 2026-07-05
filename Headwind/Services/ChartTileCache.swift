@@ -33,7 +33,11 @@ enum ChartLayer: String, CaseIterable, Identifiable {
 }
 
 /// Disk-backed tile store for FAA chart layers: serves the moving map and
-/// powers offline area downloads. Tiles live in Caches/ChartTiles/<layer>/.
+/// powers offline area downloads.
+///
+/// Tiles live in durable Application Support storage (Caches gets purged),
+/// partitioned by the 28-day cycle so a new chart edition is fetched fresh
+/// rather than served stale forever; superseded cycles are pruned.
 actor ChartTileCache {
     static let shared = ChartTileCache()
 
@@ -44,9 +48,26 @@ actor ChartTileCache {
         return URLSession(configuration: config)
     }()
 
+    private let rootDir = DurableStorage.directory("ChartTiles")
+    private var prunedThisSession = false
+
     private var baseDir: URL {
-        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("ChartTiles", isDirectory: true)
+        let cycle = AiracCalendar.cycleLabel(for: .now)
+        let dir = rootDir.appendingPathComponent(cycle, isDirectory: true)
+        if !prunedThisSession {
+            prunedThisSession = true
+            pruneCycles(keeping: cycle)
+        }
+        return dir
+    }
+
+    private func pruneCycles(keeping current: String) {
+        let contents = (try? FileManager.default.contentsOfDirectory(
+            at: rootDir, includingPropertiesForKeys: nil
+        )) ?? []
+        for url in contents where url.lastPathComponent != current {
+            try? FileManager.default.removeItem(at: url)
+        }
     }
 
     /// Returns tile data, serving from disk when available.
@@ -63,42 +84,58 @@ actor ChartTileCache {
         return data
     }
 
+    struct PrefetchResult: Sendable {
+        var fetched = 0
+        /// Tiles that failed — usually 404s outside the FAA chart's coverage
+        /// footprint (normal at chart edges), or transient errors.
+        var skipped = 0
+    }
+
     /// Downloads every missing tile covering `bounds` across `zooms`.
-    /// - Returns: number of tiles fetched (cached tiles are skipped).
+    /// Individual tile failures are skipped, never fatal: FAA services
+    /// return 404 for tiles outside a chart's coverage, and one bad tile
+    /// must not abort a 4,000-tile download. Only cancellation stops it.
     func prefetch(
         layer: ChartLayer,
         bounds: GeoBounds,
         zooms: ClosedRange<Int>,
         progress: @escaping @Sendable (Int, Int) -> Void
-    ) async throws -> Int {
+    ) async throws -> PrefetchResult {
         let all = zooms.flatMap { TileMath.tiles(covering: bounds, zoom: $0) }
         let missing = all.filter { !FileManager.default.fileExists(atPath: fileURL(layer: layer, tile: $0).path) }
+        var result = PrefetchResult()
         guard !missing.isEmpty else {
             progress(all.count, all.count)
-            return 0
+            return result
         }
 
         var done = all.count - missing.count
-        var fetched = 0
         // Modest batches keep us polite to the FAA service and cancellable.
         for batch in stride(from: 0, to: missing.count, by: 6).map({ Array(missing[$0..<min($0 + 6, missing.count)]) }) {
             try Task.checkCancellation()
-            try await withThrowingTaskGroup(of: Void.self) { group in
+            let outcomes = await withTaskGroup(of: Bool.self) { group in
                 for tile in batch {
-                    group.addTask { _ = try await self.tile(layer: layer, tile) }
+                    group.addTask {
+                        if Task.isCancelled { return false }
+                        return (try? await self.tile(layer: layer, tile)) != nil
+                    }
                 }
-                try await group.waitForAll()
+                var oks: [Bool] = []
+                for await ok in group { oks.append(ok) }
+                return oks
             }
+            try Task.checkCancellation()
+            result.fetched += outcomes.filter { $0 }.count
+            result.skipped += outcomes.filter { !$0 }.count
             done += batch.count
-            fetched += batch.count
             progress(done, all.count)
         }
-        return fetched
+        return result
     }
 
     func cacheSizeBytes() -> Int64 {
         guard let files = FileManager.default.enumerator(
-            at: baseDir, includingPropertiesForKeys: [.fileSizeKey]
+            at: rootDir, includingPropertiesForKeys: [.fileSizeKey]
         ) else { return 0 }
         var total: Int64 = 0
         for case let url as URL in files {
@@ -108,7 +145,7 @@ actor ChartTileCache {
     }
 
     func clear() {
-        try? FileManager.default.removeItem(at: baseDir)
+        try? FileManager.default.removeItem(at: rootDir)
     }
 
     private func fileURL(layer: ChartLayer, tile: TileID) -> URL {

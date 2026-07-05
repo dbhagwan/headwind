@@ -29,14 +29,21 @@ public enum TileMath {
         return TileID(z: zoom, x: x, y: y)
     }
 
-    /// All tiles covering a bounding box at one zoom level.
+    /// All tiles covering a bounding box at one zoom level. Handles
+    /// antimeridian wrap (minLon > maxLon) by walking x modulo 2^z.
     public static func tiles(covering bounds: GeoBounds, zoom: Int) -> [TileID] {
+        let n = 1 << zoom
         let topLeft = tile(for: Coordinate(latitude: bounds.maxLat, longitude: bounds.minLon), zoom: zoom)
         let bottomRight = tile(for: Coordinate(latitude: bounds.minLat, longitude: bounds.maxLon), zoom: zoom)
-        guard topLeft.x <= bottomRight.x, topLeft.y <= bottomRight.y else { return [] }
+        guard topLeft.y <= bottomRight.y else { return [] }
+
+        let xSpan = bottomRight.x >= topLeft.x
+            ? bottomRight.x - topLeft.x + 1
+            : n - topLeft.x + bottomRight.x + 1
 
         var result: [TileID] = []
-        for x in topLeft.x...bottomRight.x {
+        for step in 0..<xSpan {
+            let x = (topLeft.x + step) % n
             for y in topLeft.y...bottomRight.y {
                 result.append(TileID(z: zoom, x: x, y: y))
             }
@@ -48,10 +55,12 @@ public enum TileMath {
     /// used to size offline downloads before starting them.
     public static func tileCount(covering bounds: GeoBounds, zooms: ClosedRange<Int>) -> Int {
         zooms.reduce(0) { count, z in
+            let n = 1 << z
             let tl = tile(for: Coordinate(latitude: bounds.maxLat, longitude: bounds.minLon), zoom: z)
             let br = tile(for: Coordinate(latitude: bounds.minLat, longitude: bounds.maxLon), zoom: z)
-            guard tl.x <= br.x, tl.y <= br.y else { return count }
-            return count + (br.x - tl.x + 1) * (br.y - tl.y + 1)
+            guard tl.y <= br.y else { return count }
+            let xSpan = br.x >= tl.x ? br.x - tl.x + 1 : n - tl.x + br.x + 1
+            return count + xSpan * (br.y - tl.y + 1)
         }
     }
 }

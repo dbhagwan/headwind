@@ -48,7 +48,7 @@ PLANNING
 PILOT'S KIT
 • Digital logbook with totals
 • Phase-of-flight checklists including emergencies
-• Aeronautical data that updates itself every FAA cycle
+• Approach-plate index refreshes itself every FAA cycle
 
 Headwind is open source (MIT) and built for iOS 26 with Liquid Glass design.
 
@@ -58,10 +58,11 @@ solely responsible for the safe conduct of every flight.
 
 ## Keywords (100 chars max)
 
-> EFB,VFR,METAR,TAF,sectional,airport,aviation,pilot,logbook,foreflight,plates,NOTAM,flight plan
+> EFB,VFR,METAR,TAF,sectional,airport,aviation,pilot,logbook,foreflight,plates,weather,flight plan
 
-(97 chars. "foreflight" as a keyword is standard competitive practice; drop
-if App Review objects.)
+("foreflight" as a keyword is standard competitive practice; drop if App
+Review objects. No "NOTAM" keyword — the app deliberately has no NOTAM
+feature yet and keyword-relevance is an App Review risk.)
 
 ## Category
 
@@ -74,9 +75,10 @@ if App Review objects.)
 
 ## URLs
 
-- Support URL: https://dbhagwan.github.io/headwind/legal/support (enable
-  GitHub Pages on /docs, or link the GitHub file directly)
-- Privacy Policy URL: https://dbhagwan.github.io/headwind/legal/privacy
+- Support URL: https://github.com/dbhagwan/headwind/blob/main/docs/legal/support.md
+- Privacy Policy URL: https://github.com/dbhagwan/headwind/blob/main/docs/legal/privacy.md
+  (GitHub blob URLs work today; swap for GitHub Pages URLs — which publish
+  these .md files as .html — once Pages is enabled)
 - Marketing URL (optional): https://github.com/dbhagwan/headwind
 
 ## App Privacy questionnaire answers

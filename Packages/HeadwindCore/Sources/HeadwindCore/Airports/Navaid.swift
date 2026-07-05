@@ -18,11 +18,16 @@ public struct Navaid: Hashable, Codable, Sendable, Identifiable {
         self.frequencyKhz = frequencyKhz
     }
 
-    /// "115.8" for VHF aids, "362" for NDBs.
+    /// "115.8" / "108.05" for VHF aids (VORs use 50-kHz channels, so two
+    /// decimals with trailing-zero trim), "362" for NDBs.
     public var frequencyText: String? {
         guard let khz = frequencyKhz else { return nil }
         if khz >= 108_000 {
-            return String(format: "%.1f", Double(khz) / 1000)
+            var text = String(format: "%.2f", Double(khz) / 1000)
+            if text.hasSuffix("0") {
+                text.removeLast()
+            }
+            return text
         }
         return String(khz)
     }

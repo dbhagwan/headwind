@@ -85,7 +85,21 @@ public enum WeightBalanceCalculator {
         }
 
         let cg = totalWeight > 0 ? totalMoment / totalWeight : 0
-        let within = contains(envelope: profile.envelope, cgIn: cg, weightLb: totalWeight)
+        // A loading exactly on the envelope boundary is certified-legal
+        // (consistent with the max-weight check below, which uses strict >).
+        // Ray casting excludes edges, so also accept points that fall inside
+        // after a tiny nudge toward the envelope's centroid.
+        var within = contains(envelope: profile.envelope, cgIn: cg, weightLb: totalWeight)
+        if !within, !profile.envelope.isEmpty {
+            let centroidCg = profile.envelope.map(\.cgIn).reduce(0, +) / Double(profile.envelope.count)
+            let centroidW = profile.envelope.map(\.weightLb).reduce(0, +) / Double(profile.envelope.count)
+            let epsilon = 1e-6
+            within = contains(
+                envelope: profile.envelope,
+                cgIn: cg + (centroidCg - cg) * epsilon,
+                weightLb: totalWeight + (centroidW - totalWeight) * epsilon
+            )
+        }
         let over = totalWeight > profile.maxTakeoffWeightLb
 
         return WBResult(

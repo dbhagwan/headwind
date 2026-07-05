@@ -150,9 +150,14 @@ public struct AirportDatabase: Sendable {
     /// Airports inside a bounding box, filtered by kind and capped by
     /// distance to the box center — used by the moving map.
     public func airports(within bounds: GeoBounds, kinds: Set<AirportKind>, limit: Int = 120) -> [Airport] {
+        // Center longitude must respect antimeridian wrap (Aleutians):
+        // naive averaging of 170 and -160 lands on the wrong hemisphere.
+        let centerLon = bounds.minLon <= bounds.maxLon
+            ? (bounds.minLon + bounds.maxLon) / 2
+            : NavMath.normalizeLonDeg((bounds.minLon + bounds.maxLon + 360) / 2)
         let center = Coordinate(
             latitude: (bounds.minLat + bounds.maxLat) / 2,
-            longitude: (bounds.minLon + bounds.maxLon) / 2
+            longitude: centerLon
         )
         let hits = airports.filter { kinds.contains($0.kind) && bounds.contains($0.coordinate) }
         guard hits.count > limit else { return hits }

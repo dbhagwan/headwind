@@ -12,6 +12,7 @@ struct OfflineChartsSheet: View {
     @State private var done = 0
     @State private var total = 0
     @State private var downloadTask: Task<Void, Never>?
+    @State private var downloadID: UUID?
     @State private var statusText: String?
     @State private var cacheBytes: Int64 = 0
 
@@ -60,6 +61,7 @@ struct OfflineChartsSheet: View {
                         Button("Cancel", role: .destructive) {
                             downloadTask?.cancel()
                             downloadTask = nil
+                            downloadID = nil
                         }
                     } else {
                         Button {
@@ -116,28 +118,42 @@ struct OfflineChartsSheet: View {
         done = 0
         total = tileCount
 
+        let id = UUID()
+        downloadID = id
         downloadTask = Task {
             do {
-                let fetched = try await ChartTileCache.shared.prefetch(
+                let result = try await ChartTileCache.shared.prefetch(
                     layer: layer,
                     bounds: bounds,
                     zooms: Self.zooms
                 ) { completed, totalTiles in
                     Task { @MainActor in
-                        done = completed
-                        total = totalTiles
+                        if downloadID == id {
+                            done = completed
+                            total = totalTiles
+                        }
                     }
                 }
-                statusText = fetched == 0
-                    ? "Already downloaded — every tile was cached."
-                    : "Downloaded \(fetched.formatted()) tiles."
+                if result.fetched == 0 && result.skipped == 0 {
+                    statusText = "Already downloaded — every tile was cached."
+                } else if result.skipped == 0 {
+                    statusText = "Downloaded \(result.fetched.formatted()) tiles."
+                } else {
+                    statusText = "Downloaded \(result.fetched.formatted()) tiles; \(result.skipped.formatted()) outside chart coverage or unavailable."
+                }
             } catch is CancellationError {
+                statusText = "Download cancelled."
+            } catch let urlError as URLError where urlError.code == .cancelled {
                 statusText = "Download cancelled."
             } catch {
                 statusText = "Download failed: \(error.localizedDescription)"
             }
             cacheBytes = await ChartTileCache.shared.cacheSizeBytes()
-            downloadTask = nil
+            // Only release the UI if a newer download hasn't taken over.
+            if downloadID == id {
+                downloadTask = nil
+                downloadID = nil
+            }
         }
     }
 }

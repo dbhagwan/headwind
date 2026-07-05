@@ -13,6 +13,7 @@ struct BriefingScreen: View {
 
     @AppStorage("weather.favorites") private var favoritesCSV = "KSFO,KOAK,KSJC,KPAO"
     @State private var briefingText: String?
+    @State private var metarFetchDone = false
 
     private var stations: [String] {
         if plan.waypoints.count >= 2 {
@@ -100,9 +101,20 @@ struct BriefingScreen: View {
 
             Section("Current Weather") {
                 if routeMetars.isEmpty {
-                    HStack {
-                        ProgressView()
-                        Text("Fetching METARs…").foregroundStyle(.secondary)
+                    if metarFetchDone {
+                        Label(
+                            weather.isOffline
+                                ? "Offline — no cached observations for these stations."
+                                : "No METAR reporting at these stations.",
+                            systemImage: "icloud.slash"
+                        )
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    } else {
+                        HStack {
+                            ProgressView()
+                            Text("Fetching METARs…").foregroundStyle(.secondary)
+                        }
                     }
                 } else {
                     ForEach(routeMetars) { metar in
@@ -176,6 +188,7 @@ struct BriefingScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await weather.refreshMetars(for: stations)
+            metarFetchDone = true
             for station in stations.prefix(4) {
                 await weather.refreshTAF(for: station)
             }

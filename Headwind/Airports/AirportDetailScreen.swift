@@ -9,6 +9,7 @@ struct AirportDetailScreen: View {
     @Environment(PlateStore.self) private var plates
 
     @State private var addedToRoute = false
+    @State private var weatherFetchDone = false
 
     private var metar: Metar? { weather.metar(for: airport.ident) }
 
@@ -75,6 +76,13 @@ struct AirportDetailScreen: View {
                             .font(.caption.monospaced())
                             .foregroundStyle(.secondary)
                     }
+                } else if weatherFetchDone {
+                    Label(
+                        "No METAR reporting at this field. Check a nearby towered airport for conditions.",
+                        systemImage: "icloud.slash"
+                    )
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
                 } else {
                     HStack {
                         ProgressView()
@@ -158,6 +166,7 @@ struct AirportDetailScreen: View {
         .task {
             await plates.load()
             await weather.refreshMetars(for: [airport.ident])
+            weatherFetchDone = true
             await weather.refreshTAF(for: airport.ident)
         }
     }

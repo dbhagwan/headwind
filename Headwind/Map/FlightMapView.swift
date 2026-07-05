@@ -454,13 +454,15 @@ final class AirportAnnotation: NSObject, MKAnnotation {
 }
 
 /// Pre-rendered airport dot images, cached per (kind, flight category).
+/// NSCache is thread-safe, so this stays correct under Swift 6 strict
+/// concurrency without isolating the (main-thread) MapKit call sites.
 enum MarkerImages {
-    private static var cache: [String: UIImage] = [:]
+    private static let cache = NSCache<NSString, UIImage>()
 
     /// Diamond pin for pilot reports, colored by worst reported condition.
     static func pirepImage(severity: Pirep.Severity, hasIcing: Bool) -> UIImage {
-        let key = "pirep-\(severity.rawValue)-\(hasIcing)"
-        if let cached = cache[key] { return cached }
+        let key = "pirep-\(severity.rawValue)-\(hasIcing)" as NSString
+        if let cached = cache.object(forKey: key) { return cached }
 
         let size: CGFloat = 18
         let color: UIColor = switch severity {
@@ -495,13 +497,13 @@ enum MarkerImages {
                 cg.restoreGState()
             }
         }
-        cache[key] = image
+        cache.setObject(image, forKey: key)
         return image
     }
 
     static func image(kind: AirportKind, category: FlightCategory?) -> UIImage {
-        let key = "\(kind.rawValue)-\(category?.rawValue ?? "none")"
-        if let cached = cache[key] { return cached }
+        let key = "\(kind.rawValue)-\(category?.rawValue ?? "none")" as NSString
+        if let cached = cache.object(forKey: key) { return cached }
 
         let size: CGFloat = switch kind {
         case .large: 26
@@ -541,7 +543,7 @@ enum MarkerImages {
                 cg.restoreGState()
             }
         }
-        cache[key] = image
+        cache.setObject(image, forKey: key)
         return image
     }
 }

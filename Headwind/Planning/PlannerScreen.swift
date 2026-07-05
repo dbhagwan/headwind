@@ -215,11 +215,14 @@ struct PlannerScreen: View {
     private func refreshWindsAloft() async {
         guard plan.useWindsAloft, plan.waypoints.count >= 2 else { return }
         await airports.load()
+        // Re-validate after suspension: the route can be cleared (and this
+        // task cancelled) while the airport DB is still decoding.
+        guard !Task.isCancelled,
+              let first = plan.waypoints.first,
+              let last = plan.waypoints.last,
+              plan.waypoints.count >= 2 else { return }
 
-        let mid = NavMath.midpoint(
-            plan.waypoints.first!.coordinate,
-            plan.waypoints.last!.coordinate
-        )
+        let mid = NavMath.midpoint(first.coordinate, last.coordinate)
         let region = Self.fbRegions.min {
             NavMath.distanceNM(from: mid, to: $0.center) < NavMath.distanceNM(from: mid, to: $1.center)
         }!.code

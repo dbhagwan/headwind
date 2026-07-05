@@ -57,10 +57,22 @@ final class TFRService {
                 }
             }
 
+            // Safety: if the list has TFRs but every geometry fetch failed
+            // (captive portal, rate limit), do NOT present a fresh "0 active
+            // TFRs" — that's a false all-clear. Keep the old set and error.
+            if !items.isEmpty && resolved.isEmpty {
+                lastError = "TFR list loaded but details couldn't be fetched — showing previous data."
+                return
+            }
+
             geometryCache.merge(newGeometry) { _, new in new }
             tfrs = resolved.sorted { $0.id > $1.id }
             lastUpdated = .now
             lastError = nil
+        } catch is CancellationError {
+            // A dismissed screen cancelling its fetch is not a failure.
+        } catch let urlError as URLError where urlError.code == .cancelled {
+            // Same via URLSession.
         } catch {
             lastError = "Couldn't load TFRs: \(error.localizedDescription)"
         }

@@ -45,6 +45,13 @@ final class AirportDatabaseTests: XCTestCase {
         XCTAssertEqual(Navaid(ident: "SF", name: "x", type: "NDB",
                               coordinate: Coordinate(latitude: 0, longitude: 0),
                               frequencyKhz: 362).frequencyText, "362")
+        // 50-kHz VOR channels must keep their second decimal.
+        XCTAssertEqual(Navaid(ident: "T", name: "x", type: "VOR",
+                              coordinate: Coordinate(latitude: 0, longitude: 0),
+                              frequencyKhz: 108_050).frequencyText, "108.05")
+        XCTAssertEqual(Navaid(ident: "U", name: "x", type: "VOR",
+                              coordinate: Coordinate(latitude: 0, longitude: 0),
+                              frequencyKhz: 113_650).frequencyText, "113.65")
     }
 
     func testSearchRanksExactIdentFirstThenKind() {

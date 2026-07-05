@@ -95,6 +95,15 @@ final class AirspaceService {
         guard (response as? HTTPURLResponse)?.statusCode == 200 else {
             throw URLError(.badServerResponse)
         }
-        return AirspaceGeoJSON.volumes(from: data)
+        // ArcGIS reports server-side failures as HTTP 200 with an error
+        // body; treating that as "no airspace here" would silently blank
+        // Class B/C/D rings for the whole session in this cell.
+        let volumes = AirspaceGeoJSON.volumes(from: data)
+        if volumes.isEmpty,
+           let body = String(data: data.prefix(200), encoding: .utf8),
+           body.contains("\"error\"") {
+            throw URLError(.badServerResponse)
+        }
+        return volumes
     }
 }

@@ -47,6 +47,23 @@ final class TileMathTests: XCTestCase {
         XCTAssertEqual(tiles.count, (br.x - tl.x + 1) * (br.y - tl.y + 1))
     }
 
+    func testAntimeridianWrapEnumeratesAcrossSeam() {
+        // Aleutians box wrapping the dateline must yield tiles on both sides.
+        let bounds = GeoBounds(minLat: 50, maxLat: 55, minLon: 170, maxLon: -160)
+        let tiles = TileMath.tiles(covering: bounds, zoom: 8)
+        XCTAssertFalse(tiles.isEmpty)
+
+        let west = TileMath.tile(for: Coordinate(latitude: 52.8, longitude: 173.2), zoom: 8)
+        let east = TileMath.tile(for: Coordinate(latitude: 52.0, longitude: -176.0), zoom: 8)
+        XCTAssertTrue(tiles.contains(west))
+        XCTAssertTrue(tiles.contains(east))
+
+        XCTAssertEqual(
+            TileMath.tileCount(covering: bounds, zooms: 8...8),
+            tiles.count
+        )
+    }
+
     func testTileCountAcrossZoomsMatchesEnumeration() {
         let bounds = GeoBounds(minLat: 37.0, maxLat: 38.0, minLon: -123.0, maxLon: -121.5)
         let counted = TileMath.tileCount(covering: bounds, zooms: 8...11)

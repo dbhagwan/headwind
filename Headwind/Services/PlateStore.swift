@@ -21,9 +21,14 @@ final class PlateStore {
     )!
 
     private nonisolated static var cachedIndexURL: URL {
-        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("us-plates-latest.json")
+        DurableStorage.directory("Plates").appendingPathComponent("us-plates-latest.json")
     }
+
+    private nonisolated static let indexSession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 20
+        return URLSession(configuration: config)
+    }()
 
     var cycle: String { index.cycle }
     var currency: DataCurrency? { index.currency }
@@ -78,20 +83,25 @@ final class PlateStore {
         defer { isCheckingForUpdate = false }
 
         do {
-            let (data, response) = try await URLSession.shared.data(from: Self.remoteIndexURL)
-            guard (response as? HTTPURLResponse)?.statusCode == 200 else {
-                updateMessage = "Couldn't reach the update server."
-                return false
-            }
-            let fetched = try JSONDecoder().decode(PlateIndex.self, from: data)
-            guard Self.isNewer(fetched, than: index) else {
+            // Decode the 1.3 MB index off the main actor to avoid a UI hitch.
+            let fetched = try await Task.detached(priority: .userInitiated) { () -> (PlateIndex, Data) in
+                let (data, response) = try await Self.indexSession.data(from: Self.remoteIndexURL)
+                guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+                    throw URLError(.badServerResponse)
+                }
+                return (try JSONDecoder().decode(PlateIndex.self, from: data), data)
+            }.value
+
+            guard Self.isNewer(fetched.0, than: index) else {
                 updateMessage = "Procedures are up to date (cycle \(index.cycle))."
                 return false
             }
-            try? data.write(to: Self.cachedIndexURL)
-            index = fetched
-            updateMessage = "Updated to cycle \(fetched.cycle)."
+            try? fetched.1.write(to: Self.cachedIndexURL, options: .atomic)
+            index = fetched.0
+            updateMessage = "Updated to cycle \(fetched.0.cycle)."
             return true
+        } catch is CancellationError {
+            return false
         } catch {
             updateMessage = "Update check failed: \(error.localizedDescription)"
             return false
@@ -108,13 +118,15 @@ final class PlateStore {
         return index
     }
 
-    /// Newer = later effective date, or a different non-empty cycle when the
-    /// candidate carries no dates.
+    /// Newer = later effective date. A dated index always beats an undated
+    /// one (a stale date-less cache must never shadow a dated bundle); only
+    /// when neither carries dates do we fall back to cycle inequality.
     private nonisolated static func isNewer(_ candidate: PlateIndex, than current: PlateIndex) -> Bool {
         switch (candidate.effectiveDate, current.effectiveDate) {
         case let (c?, cur?): return c > cur
         case (_?, nil): return true
-        default: return !candidate.cycle.isEmpty && candidate.cycle != current.cycle
+        case (nil, _?): return false
+        case (nil, nil): return !candidate.cycle.isEmpty && candidate.cycle != current.cycle
         }
     }
 }
@@ -130,28 +142,30 @@ actor PlateCache {
         return URLSession(configuration: config)
     }()
 
-    private var baseDir: URL {
-        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Plates", isDirectory: true)
-    }
+    // Durable storage: a plate a pilot downloaded must survive iOS cache
+    // purges (it may be needed in the air with no signal).
+    private let baseDir = DurableStorage.directory("Plates")
 
     func pdf(cycle: String, pdfName: String) async throws -> Data {
         let file = baseDir
             .appendingPathComponent(cycle, isDirectory: true)
             .appendingPathComponent(pdfName.lowercased())
-        if let data = try? Data(contentsOf: file), !data.isEmpty {
+        if let data = try? Data(contentsOf: file), data.starts(with: Array("%PDF".utf8)) {
             return data
         }
 
         let url = URL(string: "https://aeronav.faa.gov/d-tpp/\(cycle)/\(pdfName.lowercased())")!
         let (data, response) = try await session.data(from: url)
-        guard (response as? HTTPURLResponse)?.statusCode == 200, !data.isEmpty else {
+        // Validate it's actually a PDF — an HTML error page must never be
+        // cached as a plate.
+        guard (response as? HTTPURLResponse)?.statusCode == 200,
+              data.starts(with: Array("%PDF".utf8)) else {
             throw URLError(.resourceUnavailable)
         }
         try? FileManager.default.createDirectory(
             at: file.deletingLastPathComponent(), withIntermediateDirectories: true
         )
-        try? data.write(to: file)
+        try? data.write(to: file, options: .atomic)
         return data
     }
 
