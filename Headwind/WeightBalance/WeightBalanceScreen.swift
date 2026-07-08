@@ -1,17 +1,26 @@
 import SwiftUI
+import SwiftData
 import Charts
 import HeadwindCore
 
-/// Interactive weight & balance with a live CG envelope chart.
+/// Interactive weight & balance with a live CG envelope chart. Profiles
+/// come from the built-in samples plus the pilot's own aircraft.
 struct WeightBalanceScreen: View {
+    @Query(sort: \UserAircraft.name) private var userAircraft: [UserAircraft]
+
     @State private var profile = SampleAircraft.cessna172S
     @State private var stationWeights: [String: Double]
+    @State private var showingAircraftEditor = false
 
     init() {
         let profile = SampleAircraft.cessna172S
         _stationWeights = State(initialValue: Dictionary(
             uniqueKeysWithValues: profile.stations.map { ($0.name, $0.defaultWeightLb) }
         ))
+    }
+
+    private var allProfiles: [AircraftProfile] {
+        userAircraft.map { $0.toProfile() } + SampleAircraft.all
     }
 
     private var result: WBResult {
@@ -34,11 +43,25 @@ struct WeightBalanceScreen: View {
 
             Section("Aircraft") {
                 Picker("Profile", selection: $profile) {
-                    ForEach(SampleAircraft.all) { aircraft in
-                        Text(aircraft.name).tag(aircraft)
+                    if !userAircraft.isEmpty {
+                        Section("My Aircraft") {
+                            ForEach(userAircraft.map { $0.toProfile() }) { aircraft in
+                                Text(aircraft.name).tag(aircraft)
+                            }
+                        }
+                    }
+                    Section("Samples") {
+                        ForEach(SampleAircraft.all) { aircraft in
+                            Text(aircraft.name).tag(aircraft)
+                        }
                     }
                 }
                 LabeledContent("Max takeoff", value: "\(Int(profile.maxTakeoffWeightLb)) lb")
+                Button {
+                    showingAircraftEditor = true
+                } label: {
+                    Label("Add My Aircraft", systemImage: "plus.circle.fill")
+                }
             }
 
             Section("Loading") {
@@ -58,6 +81,9 @@ struct WeightBalanceScreen: View {
         }
         .navigationTitle("Weight & Balance")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showingAircraftEditor) {
+            AircraftEditor()
+        }
         .onChange(of: profile) {
             stationWeights = Dictionary(
                 uniqueKeysWithValues: profile.stations.map { ($0.name, $0.defaultWeightLb) }

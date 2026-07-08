@@ -12,6 +12,7 @@ struct IconBadge: View {
             .foregroundStyle(.white)
             .frame(width: 30, height: 30)
             .background(tint.gradient, in: .rect(cornerRadius: 7))
+            .accessibilityHidden(true) // decorative; the row's text carries meaning
     }
 }
 
@@ -68,6 +69,11 @@ struct WindArrow: View {
                     .foregroundStyle(.secondary)
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            "Wind from \(Int(directionFromDeg.rounded())) degrees" +
+            (speedKts.map { " at \(Int($0.rounded())) knots" } ?? "")
+        )
     }
 }
 
@@ -178,6 +184,12 @@ struct RunwayDiagram: View {
             }
         }
         .frame(width: diameter, height: diameter)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            "Runway diagram: " + drawable
+                .map { "\($0.ident) heading \(Int($0.headingDeg.rounded())) degrees true" }
+                .joined(separator: ", ")
+        )
     }
 }
 

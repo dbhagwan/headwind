@@ -26,6 +26,6 @@ struct HeadwindApp: App {
                 .environment(plates)
                 .environment(tracks)
         }
-        .modelContainer(for: LogEntry.self)
+        .modelContainer(for: [LogEntry.self, UserAircraft.self])
     }
 }

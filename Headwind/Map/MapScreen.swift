@@ -173,6 +173,7 @@ struct MapScreen: View {
                         .font(.title3)
                         .frame(width: 44, height: 44)
                 }
+                .accessibilityLabel("Map layers")
                 .glassEffect(.regular.interactive(), in: .circle)
 
                 Button {
@@ -182,6 +183,7 @@ struct MapScreen: View {
                         .font(.title3)
                         .frame(width: 44, height: 44)
                 }
+                .accessibilityLabel("Center on my position")
                 .glassEffect(.regular.interactive(), in: .circle)
 
                 Button {
@@ -196,6 +198,7 @@ struct MapScreen: View {
                         .foregroundStyle(recorder.isRecording ? .red : .primary)
                         .frame(width: 44, height: 44)
                 }
+                .accessibilityLabel(recorder.isRecording ? "Stop recording track" : "Record flight track")
                 .glassEffect(.regular.interactive(), in: .circle)
 
                 if plan.waypoints.count >= 2 {
@@ -206,6 +209,7 @@ struct MapScreen: View {
                             .font(.title3)
                             .frame(width: 44, height: 44)
                     }
+                    .accessibilityLabel("Frame the route")
                     .glassEffect(.regular.interactive(), in: .circle)
                 }
             }

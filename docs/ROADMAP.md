@@ -96,8 +96,9 @@ device profiling, the TestFlight pilot beta, and store packaging.
   always grounded, always labeled
 
 **1.3 Aircraft & performance**
-- User-defined aircraft (SwiftData): W&B stations/envelopes, cruise
-  profiles, fuel curves
+- ✅ User-defined aircraft (SwiftData): name/weights/stations editor with a
+  forward-aft CG envelope, merged into the W&B profile picker (curved
+  envelopes, cruise profiles, and fuel curves still to come)
 - POH performance: takeoff/landing distance vs density altitude/weight/wind
 - Maintenance tracking: oil, annual, transponder/pitot-static, ELT dates
 
@@ -119,7 +120,7 @@ device profiling, the TestFlight pilot beta, and store packaging.
   from/to idents — pilot confirms in the editor
 - ✅ Track replay: route + start/end markers on a map, stat trio,
   per-flight breakdown
-- GPX/KML export still to come
+- ✅ GPX 1.1 export via share sheet (KML still to come)
 
 **2.1 ADS-B In (GDL90 over UDP — Stratux, Sentry, Stratus)**
 - Traffic: relative-altitude targets with trend vectors and alerting
