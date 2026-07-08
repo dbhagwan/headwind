@@ -20,7 +20,8 @@ final class UserAircraft {
     var minEnvelopeWeightLb: Double
     var stations: [StationData]
 
-    struct StationData: Codable, Hashable {
+    struct StationData: Codable, Hashable, Identifiable {
+        var id = UUID()
         var name: String
         var armIn: Double
         var maxWeightLb: Double?
@@ -55,21 +56,34 @@ final class UserAircraft {
     }
 
     /// Bridge to the tested core calculator.
+    ///
+    /// Station names are uniquified defensively: the calculator and the
+    /// loading UI key weights by station name, so two stations sharing a
+    /// name would double-count weight — a wrong number on a W&B screen.
     func toProfile() -> AircraftProfile {
-        AircraftProfile(
+        var seen: Set<String> = []
+        let uniqueStations = stations.map { station -> WBStation in
+            var stationName = station.name.isEmpty ? "Station" : station.name
+            var suffix = 2
+            while seen.contains(stationName) {
+                stationName = "\(station.name.isEmpty ? "Station" : station.name) \(suffix)"
+                suffix += 1
+            }
+            seen.insert(stationName)
+            return WBStation(
+                name: stationName,
+                armIn: station.armIn,
+                maxWeightLb: station.maxWeightLb,
+                defaultWeightLb: station.defaultWeightLb
+            )
+        }
+        return AircraftProfile(
             name: name.isEmpty ? "My Aircraft" : name,
             emptyWeightLb: emptyWeightLb,
             emptyArmIn: emptyArmIn,
             maxTakeoffWeightLb: maxTakeoffWeightLb,
             fuelCapacityGal: fuelCapacityGal,
-            stations: stations.map {
-                WBStation(
-                    name: $0.name,
-                    armIn: $0.armIn,
-                    maxWeightLb: $0.maxWeightLb,
-                    defaultWeightLb: $0.defaultWeightLb
-                )
-            },
+            stations: uniqueStations,
             envelope: [
                 CGEnvelopePoint(cgIn: forwardCGIn, weightLb: minEnvelopeWeightLb),
                 CGEnvelopePoint(cgIn: aftCGIn, weightLb: minEnvelopeWeightLb),

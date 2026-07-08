@@ -19,10 +19,6 @@ struct WeightBalanceScreen: View {
         ))
     }
 
-    private var allProfiles: [AircraftProfile] {
-        userAircraft.map { $0.toProfile() } + SampleAircraft.all
-    }
-
     private var result: WBResult {
         WeightBalanceCalculator.evaluate(profile: profile, stationWeights: stationWeights)
     }

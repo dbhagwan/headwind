@@ -1,19 +1,17 @@
 import SwiftUI
 import SwiftData
 
-/// Create or edit a pilot-defined aircraft profile. Values must come from
-/// the aircraft's own POH/weighing record — the form says so.
+/// Create a pilot-defined aircraft profile. Values must come from the
+/// aircraft's own POH/weighing record — the form says so.
+///
+/// Creation-only by design: editing a persisted @Model through live
+/// bindings makes Cancel a lie under SwiftData autosave. An edit flow
+/// needs draft-copy semantics; until it has them, it doesn't exist.
 struct AircraftEditor: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
 
-    @State private var aircraft: UserAircraft
-    private let isNew: Bool
-
-    init(aircraft: UserAircraft? = nil) {
-        _aircraft = State(initialValue: aircraft ?? UserAircraft())
-        isNew = aircraft == nil
-    }
+    @State private var aircraft = UserAircraft()
 
     var body: some View {
         NavigationStack {
@@ -36,7 +34,7 @@ struct AircraftEditor: View {
                 }
 
                 Section("Loading Stations") {
-                    ForEach($aircraft.stations, id: \.self) { $station in
+                    ForEach($aircraft.stations) { $station in
                         VStack(alignment: .leading, spacing: 6) {
                             TextField("Station name", text: $station.name)
                                 .font(.subheadline.weight(.medium))
@@ -49,8 +47,17 @@ struct AircraftEditor: View {
                     .onDelete { aircraft.stations.remove(atOffsets: $0) }
 
                     Button {
+                        // Unique default name: duplicates would collide in the
+                        // name-keyed loading UI and double-count weight.
+                        let existing = Set(aircraft.stations.map(\.name))
+                        var candidate = "Station \(aircraft.stations.count + 1)"
+                        var n = aircraft.stations.count + 1
+                        while existing.contains(candidate) {
+                            n += 1
+                            candidate = "Station \(n)"
+                        }
                         aircraft.stations.append(
-                            UserAircraft.StationData(name: "Station", armIn: 40, maxWeightLb: nil, defaultWeightLb: 0)
+                            UserAircraft.StationData(name: candidate, armIn: 40, maxWeightLb: nil, defaultWeightLb: 0)
                         )
                     } label: {
                         Label("Add Station", systemImage: "plus.circle.fill")
@@ -63,7 +70,7 @@ struct AircraftEditor: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .navigationTitle(isNew ? "New Aircraft" : "Edit Aircraft")
+            .navigationTitle("New Aircraft")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -71,9 +78,7 @@ struct AircraftEditor: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        if isNew {
-                            context.insert(aircraft)
-                        }
+                        context.insert(aircraft)
                         dismiss()
                     }
                     .disabled(!isValid)

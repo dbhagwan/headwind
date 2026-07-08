@@ -14,8 +14,13 @@ final class TrackRecorder {
     private(set) var savedTracks: [TrackLog] = []
 
     private var streamTask: Task<Void, Never>?
+    /// Monotonic recording-session token; see start().
+    private var session: UInt64 = 0
     private let manager = CLLocationManager()
-    private let directory = DurableStorage.directory("Tracks")
+    // Pilot-recorded tracks are irreplaceable — they stay in device backups.
+    private let directory = DurableStorage.directory("Tracks", excludeFromBackup: false)
+    /// Cached per-track detected-flight counts (flights detection is O(points)).
+    private var flightCountCache: [UUID: Int] = [:]
 
     init() {
         loadSavedTracks()
@@ -28,11 +33,16 @@ final class TrackRecorder {
         manager.requestWhenInUseAuthorization()
         activeTrack = TrackLog(name: Self.defaultName(for: .now))
         isRecording = true
+        session &+= 1
+        let session = self.session
 
         streamTask = Task { [weak self] in
             do {
                 for try await update in CLLocationUpdate.liveUpdates() {
-                    guard let self, self.isRecording else { return }
+                    // The session check keeps a cancelled-but-still-draining
+                    // stream from appending into a subsequently restarted
+                    // recording (isRecording alone can't tell them apart).
+                    guard let self, self.isRecording, self.session == session else { return }
                     guard let location = update.location else { continue }
                     self.append(location)
                 }
@@ -76,7 +86,17 @@ final class TrackRecorder {
 
     // MARK: Store
 
+    /// Detected-flight count for a saved track, memoized — detection walks
+    /// every point and the list recomputes rows on each appearance.
+    func flightCount(for track: TrackLog) -> Int {
+        if let cached = flightCountCache[track.id] { return cached }
+        let count = FlightDetector.flights(in: track).count
+        flightCountCache[track.id] = count
+        return count
+    }
+
     func loadSavedTracks() {
+        flightCountCache.removeAll()
         let files = (try? FileManager.default.contentsOfDirectory(
             at: directory, includingPropertiesForKeys: nil
         )) ?? []

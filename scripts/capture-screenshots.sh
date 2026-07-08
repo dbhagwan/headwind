@@ -109,7 +109,9 @@ for tab in weather plan airport tracks logbook map; do
   fi
 done
 
-kill -INT "$REC_PID"
+# The recorder may already have exited (simctl hiccup); under set -e a
+# failed kill would abort the run after the whole tour already completed.
+kill -INT "$REC_PID" 2>/dev/null || true
 wait "$REC_PID" || true
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
 test -s "$RAW_VIDEO"

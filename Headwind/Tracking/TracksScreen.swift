@@ -24,9 +24,10 @@ struct TracksScreen: View {
                         }
                     }
                     .onDelete { offsets in
-                        for index in offsets {
-                            recorder.delete(recorder.savedTracks[index])
-                        }
+                        // Resolve all offsets before deleting: delete()
+                        // reloads savedTracks, shifting later indices.
+                        let doomed = offsets.map { recorder.savedTracks[$0] }
+                        doomed.forEach { recorder.delete($0) }
                     }
                 }
             }
@@ -53,6 +54,7 @@ struct TracksScreen: View {
 }
 
 private struct TrackRow: View {
+    @Environment(TrackRecorder.self) private var recorder
     let track: TrackLog
 
     var body: some View {
@@ -64,7 +66,7 @@ private struct TrackRow: View {
                 HStack(spacing: 10) {
                     Text("\(Int(track.distanceNM.rounded())) NM")
                     Text(String(format: "%.1f h", track.durationHours))
-                    let flights = FlightDetector.flights(in: track).count
+                    let flights = recorder.flightCount(for: track)
                     if flights > 0 {
                         Text("\(flights) \(flights == 1 ? "flight" : "flights")")
                     }
@@ -82,6 +84,7 @@ struct TrackDetailScreen: View {
 
     @Environment(AirportStore.self) private var airports
     @State private var showingLogEditor = false
+    @State private var gpxURL: URL?
 
     private var flights: [FlightDetector.Flight] {
         FlightDetector.flights(in: track)
@@ -140,11 +143,13 @@ struct TrackDetailScreen: View {
                 }
                 .disabled(flights.isEmpty)
 
-                ShareLink(
-                    item: gpxFile(),
-                    preview: SharePreview(track.name)
-                ) {
-                    Label("Export GPX", systemImage: "square.and.arrow.up")
+                if let gpxURL {
+                    ShareLink(
+                        item: gpxURL,
+                        preview: SharePreview(track.name)
+                    ) {
+                        Label("Export GPX", systemImage: "square.and.arrow.up")
+                    }
                 }
             }
         }
@@ -153,13 +158,20 @@ struct TrackDetailScreen: View {
         .sheet(isPresented: $showingLogEditor) {
             LogEntryEditor(prefilled: prefilledEntry())
         }
+        .task(id: track.id) {
+            gpxURL = writeGPXFile()
+        }
     }
 
-    /// Writes the GPX to a shareable temporary file URL.
-    private func gpxFile() -> URL {
+    /// Writes the GPX to a shareable temporary file URL — once per track,
+    /// not on every body evaluation. Id-suffixed so two tracks sharing a
+    /// display name can't clobber each other's export.
+    private func writeGPXFile() -> URL? {
+        let safeName = track.name.replacingOccurrences(of: "/", with: "-")
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("\(track.name.replacingOccurrences(of: "/", with: "-")).gpx")
-        try? track.gpx().data(using: .utf8)?.write(to: url, options: .atomic)
+            .appendingPathComponent("\(safeName)-\(track.id.uuidString.prefix(8)).gpx")
+        guard let data = track.gpx().data(using: .utf8),
+              (try? data.write(to: url, options: .atomic)) != nil else { return nil }
         return url
     }
 

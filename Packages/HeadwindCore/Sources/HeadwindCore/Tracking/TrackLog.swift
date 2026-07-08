@@ -73,11 +73,19 @@ public struct TrackLog: Codable, Hashable, Sendable, Identifiable {
 
     /// Route coordinates thinned for map display (keeps endpoints).
     public func simplified(maxPoints: Int = 500) -> [Coordinate] {
-        guard points.count > maxPoints, maxPoints >= 2 else {
+        guard maxPoints >= 2 else {
+            // A cap below 2 can't represent a path; return the endpoints.
+            return [points.first?.coordinate, points.last?.coordinate].compactMap { $0 }
+        }
+        guard points.count > maxPoints else {
             return points.map(\.coordinate)
         }
         let stride = Double(points.count - 1) / Double(maxPoints - 1)
-        return (0..<maxPoints).map { points[Int(Double($0) * stride)].coordinate }
+        var coords = (0..<maxPoints).map { points[min(Int(Double($0) * stride), points.count - 1)].coordinate }
+        // FP truncation can land the final sample one short of the true end
+        // (e.g. 98.9999… → 98); the endpoint contract is explicit.
+        coords[coords.count - 1] = points[points.count - 1].coordinate
+        return coords
     }
 }
 

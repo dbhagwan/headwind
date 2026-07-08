@@ -36,6 +36,20 @@ final class TrackLogTests: XCTestCase {
         XCTAssertEqual(track([(0, 50), (60, 50)]).simplified(maxPoints: 100).count, 2)
     }
 
+    func testSimplifiedEndpointSurvivesFloatTruncation() {
+        // count/maxPoints pairs where Double stride truncates the last index
+        // (e.g. 102 points, cap 100 → 98.999… → 98 without the fix).
+        for (count, cap) in [(102, 100), (100, 50), (1001, 500)] {
+            let log = track((0..<count).map { (Double($0), 100.0) })
+            let thin = log.simplified(maxPoints: cap)
+            XCTAssertEqual(thin.count, cap, "count=\(count) cap=\(cap)")
+            XCTAssertEqual(thin.last, log.points.last?.coordinate, "count=\(count) cap=\(cap)")
+        }
+        // Degenerate caps return just the endpoints instead of everything.
+        let long = track((0..<50).map { (Double($0), 100.0) })
+        XCTAssertEqual(long.simplified(maxPoints: 1).count, 2)
+    }
+
     func testGPXExport() {
         var log = track([(0, 50), (60, 100)])
         log.name = "Bay <Tour> & Back"
