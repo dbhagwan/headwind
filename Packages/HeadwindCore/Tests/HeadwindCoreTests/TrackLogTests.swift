@@ -36,6 +36,19 @@ final class TrackLogTests: XCTestCase {
         XCTAssertEqual(track([(0, 50), (60, 50)]).simplified(maxPoints: 100).count, 2)
     }
 
+    func testGPXExport() {
+        var log = track([(0, 50), (60, 100)])
+        log.name = "Bay <Tour> & Back"
+        let gpx = log.gpx()
+        XCTAssertTrue(gpx.contains("<gpx version=\"1.1\""))
+        XCTAssertTrue(gpx.contains("creator=\"Headwind\""))
+        XCTAssertEqual(gpx.components(separatedBy: "<trkpt ").count - 1, 2)
+        // 1000 ft → 304.8 m elevation, XML-escaped name.
+        XCTAssertTrue(gpx.contains("<ele>304.8</ele>"))
+        XCTAssertTrue(gpx.contains("Bay &lt;Tour&gt; &amp; Back") == false)
+        XCTAssertTrue(gpx.contains("Bay &lt;Tour> &amp; Back"))
+    }
+
     func testCodableRoundTrip() throws {
         let log = track([(0, 10), (60, 80), (120, 100)])
         let decoded = try JSONDecoder().decode(TrackLog.self, from: JSONEncoder().encode(log))

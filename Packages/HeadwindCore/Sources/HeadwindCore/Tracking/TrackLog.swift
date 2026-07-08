@@ -45,6 +45,32 @@ public struct TrackLog: Codable, Hashable, Sendable, Identifiable {
     public var maxAltitudeFt: Double { points.map(\.altitudeFt).max() ?? 0 }
     public var maxGroundSpeedKts: Double { points.map(\.groundSpeedKts).max() ?? 0 }
 
+    /// GPX 1.1 document for sharing with other tools (ForeFlight, CloudAhoy,
+    /// Google Earth all import GPX).
+    public func gpx() -> String {
+        let formatter = ISO8601DateFormatter()
+        let trackpoints = points.map { point in
+            """
+                  <trkpt lat="\(point.coordinate.latitude)" lon="\(point.coordinate.longitude)">
+                    <ele>\(String(format: "%.1f", point.altitudeFt * 0.3048))</ele>
+                    <time>\(formatter.string(from: point.timestamp))</time>
+                  </trkpt>
+            """
+        }.joined(separator: "\n")
+
+        return """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <gpx version="1.1" creator="Headwind" xmlns="http://www.topografix.com/GPX/1/1">
+          <trk>
+            <name>\(name.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;"))</name>
+            <trkseg>
+        \(trackpoints)
+            </trkseg>
+          </trk>
+        </gpx>
+        """
+    }
+
     /// Route coordinates thinned for map display (keeps endpoints).
     public func simplified(maxPoints: Int = 500) -> [Coordinate] {
         guard points.count > maxPoints, maxPoints >= 2 else {

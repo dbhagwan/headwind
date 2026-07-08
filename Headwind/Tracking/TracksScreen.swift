@@ -6,6 +6,7 @@ import HeadwindCore
 /// logbook entry with detected airborne time and landing count.
 struct TracksScreen: View {
     @Environment(TrackRecorder.self) private var recorder
+    @State private var captureShowsDetail = false
 
     var body: some View {
         Group {
@@ -35,7 +36,19 @@ struct TracksScreen: View {
         .navigationDestination(for: TrackLog.self) { track in
             TrackDetailScreen(track: track)
         }
+        .navigationDestination(isPresented: $captureShowsDetail) {
+            if let first = recorder.savedTracks.first {
+                TrackDetailScreen(track: first)
+            }
+        }
         .onAppear { recorder.loadSavedTracks() }
+        .task {
+            if ProcessInfo.processInfo.arguments.contains("-screenshotTracks"),
+               !recorder.savedTracks.isEmpty {
+                try? await Task.sleep(for: .seconds(1))
+                captureShowsDetail = true
+            }
+        }
     }
 }
 
@@ -126,6 +139,13 @@ struct TrackDetailScreen: View {
                     Label("Add to Logbook", systemImage: "book.closed.fill")
                 }
                 .disabled(flights.isEmpty)
+
+                ShareLink(
+                    item: gpxFile(),
+                    preview: SharePreview(track.name)
+                ) {
+                    Label("Export GPX", systemImage: "square.and.arrow.up")
+                }
             }
         }
         .navigationTitle(track.name)
@@ -133,6 +153,14 @@ struct TrackDetailScreen: View {
         .sheet(isPresented: $showingLogEditor) {
             LogEntryEditor(prefilled: prefilledEntry())
         }
+    }
+
+    /// Writes the GPX to a shareable temporary file URL.
+    private func gpxFile() -> URL {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(track.name.replacingOccurrences(of: "/", with: "-")).gpx")
+        try? track.gpx().data(using: .utf8)?.write(to: url, options: .atomic)
+        return url
     }
 
     /// Logbook entry seeded from the track: airborne hours, landings, and

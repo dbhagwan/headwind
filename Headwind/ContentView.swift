@@ -9,6 +9,7 @@ struct ContentView: View {
     @Environment(AirportStore.self) private var airports
     @Environment(LocationService.self) private var location
     @Environment(WeatherService.self) private var weather
+    @Environment(TrackRecorder.self) private var tracks
     @Environment(\.modelContext) private var modelContext
 
     @State private var selection: AppTab = ContentView.initialTab()
@@ -39,7 +40,7 @@ struct ContentView: View {
             location.start()
             weather.loadCache()
             await airports.load()
-            DemoData.seedIfNeeded(plan: plan, airports: airports, context: modelContext)
+            DemoData.seedIfNeeded(plan: plan, airports: airports, tracks: tracks, context: modelContext)
         }
     }
 

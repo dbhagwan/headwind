@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct MoreScreen: View {
+    @State private var captureShowsTracks = false
+
     var body: some View {
         NavigationStack {
             List {
@@ -34,6 +36,17 @@ struct MoreScreen: View {
                 }
             }
             .navigationTitle("More")
+            .navigationDestination(isPresented: $captureShowsTracks) {
+                TracksScreen()
+            }
+            .task {
+                // Capture automation: -screenshotTracks deep-opens Track Logs
+                // (simctl can't tap through the More menu).
+                if ProcessInfo.processInfo.arguments.contains("-screenshotTracks") {
+                    try? await Task.sleep(for: .seconds(1))
+                    captureShowsTracks = true
+                }
+            }
         }
     }
 

@@ -10,6 +10,51 @@ enum DemoData {
         ProcessInfo.processInfo.arguments.contains("-demoData")
     }
 
+    /// A believable Bay Tour breadcrumb: taxi at KPAO, a 24-minute loop out
+    /// over the bay at 2,400 ft, and a landing back home — so the Track Logs
+    /// screens have real-looking content in demos and captures.
+    static func sampleTrack() -> TrackLog {
+        let start = Date.now.addingTimeInterval(-3600)
+        let kpao = Coordinate(latitude: 37.4611, longitude: -122.1150)
+        var points: [TrackPoint] = []
+
+        // Taxi (3 min at 8 kt).
+        for i in 0..<9 {
+            points.append(TrackPoint(
+                timestamp: start.addingTimeInterval(Double(i) * 20),
+                coordinate: kpao,
+                altitudeFt: 10,
+                groundSpeedKts: 8
+            ))
+        }
+        // Airborne loop: 72 samples over 24 min, an ellipse over the bay.
+        for i in 0..<72 {
+            let t = Double(i) / 71.0
+            let angle = t * 2 * Double.pi
+            let coordinate = Coordinate(
+                latitude: kpao.latitude + 0.09 * sin(angle),
+                longitude: kpao.longitude - 0.12 * (1 - cos(angle)) / 2
+            )
+            let altitude = 2400.0 * min(1, min(t / 0.12, (1 - t) / 0.12)) + 10
+            points.append(TrackPoint(
+                timestamp: start.addingTimeInterval(180 + t * 1440),
+                coordinate: coordinate,
+                altitudeFt: altitude,
+                groundSpeedKts: 105
+            ))
+        }
+        // Rollout and taxi in (90 s).
+        for i in 0..<5 {
+            points.append(TrackPoint(
+                timestamp: start.addingTimeInterval(1640 + Double(i) * 20),
+                coordinate: kpao,
+                altitudeFt: 10,
+                groundSpeedKts: 12
+            ))
+        }
+        return TrackLog(name: "Bay Tour (sample)", points: points)
+    }
+
     /// `-screenshotAirport KSFO` → "KSFO"; used by capture automation to
     /// open an airport detail page directly.
     static var screenshotAirportIdent: String? {
@@ -19,8 +64,17 @@ enum DemoData {
         return args[index + 1]
     }
 
-    static func seedIfNeeded(plan: PlanStore, airports: AirportStore, context: ModelContext) {
+    static func seedIfNeeded(
+        plan: PlanStore,
+        airports: AirportStore,
+        tracks: TrackRecorder,
+        context: ModelContext
+    ) {
         guard isEnabled else { return }
+
+        if tracks.savedTracks.isEmpty {
+            tracks.save(sampleTrack())
+        }
 
         // Screenshots showcase the clean aeronautical mode (vector airspace
         // on the muted base map); sectionals stay one tap away in the menu.

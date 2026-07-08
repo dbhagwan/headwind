@@ -62,6 +62,13 @@ xcrun simctl io "$UDID" screenshot "$OUT_DIR/airport.png"
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
 sleep 2
 
+# Track replay (seeded Bay Tour): deep-opens Track Logs -> first track.
+xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoData -screenshotTab more -screenshotTracks
+sleep 12
+xcrun simctl io "$UDID" screenshot "$OUT_DIR/tracks.png"
+xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
+sleep 2
+
 ls -la "$OUT_DIR"
 
 # --- Demo video: one continuous recording touring every tab -----------------
@@ -85,9 +92,12 @@ sleep 2
 # tour opens on the instantly-rendering weather cards and CLOSES on the map
 # with the longest dwell — strongest final shot, maximum render time, and
 # the recording ends on content rather than a terminate.
-for tab in weather plan airport logbook more map; do
+for tab in weather plan airport tracks logbook map; do
   if [ "$tab" = "airport" ]; then
     xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoData -screenshotTab search -screenshotAirport KSFO
+    sleep 9
+  elif [ "$tab" = "tracks" ]; then
+    xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoData -screenshotTab more -screenshotTracks
     sleep 9
   else
     xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoData -screenshotTab "$tab"
@@ -113,3 +123,47 @@ else
   cp "$RAW_VIDEO" "$MEDIA_DIR/demo.mp4"
 fi
 ls -la "$MEDIA_DIR"
+
+# --- iPad lane: App Store requires iPad screenshots for universal apps ------
+IPAD_UDID=$(xcrun simctl list devices available --json | python3 -c "
+import json, sys
+devices = json.load(sys.stdin)['devices']
+best = None
+for runtime, devs in devices.items():
+    if '.iOS-' not in runtime:
+        continue
+    version = tuple(int(p) for p in runtime.split('.iOS-')[-1].split('-') if p.isdigit())
+    for d in devs:
+        name = d.get('name', '')
+        if 'iPad' not in name:
+            continue
+        key = (version, 'Pro' in name, '13' in name, name)
+        if best is None or key > best[0]:
+            best = (key, d['udid'], name)
+print(best[1] if best else '')
+")
+
+if [ -n "$IPAD_UDID" ]; then
+  echo "iPad lane on $IPAD_UDID"
+  xcrun simctl boot "$IPAD_UDID" || true
+  xcrun simctl bootstatus "$IPAD_UDID" -b
+  xcrun simctl ui "$IPAD_UDID" appearance dark
+  xcrun simctl install "$IPAD_UDID" "$APP_PATH"
+  xcrun simctl privacy "$IPAD_UDID" grant location "$BUNDLE_ID" || true
+  xcrun simctl location "$IPAD_UDID" set 37.6188,-122.3750 || true
+  xcrun simctl status_bar "$IPAD_UDID" override \
+    --time "9:41" --batteryState charged --batteryLevel 100 --wifiBars 3 || true
+
+  for tab in map plan weather; do
+    xcrun simctl launch "$IPAD_UDID" "$BUNDLE_ID" -demoData -screenshotTab "$tab"
+    sleep 16
+    xcrun simctl io "$IPAD_UDID" screenshot "$OUT_DIR/ipad-$tab.png"
+    xcrun simctl terminate "$IPAD_UDID" "$BUNDLE_ID" || true
+    sleep 2
+  done
+  xcrun simctl shutdown "$IPAD_UDID" || true
+else
+  echo "No iPad simulator available; skipping iPad lane"
+fi
+
+ls -la "$OUT_DIR"
