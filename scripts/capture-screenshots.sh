@@ -124,6 +124,14 @@ else
   echo "avconvert failed; committing raw recording"
   cp "$RAW_VIDEO" "$MEDIA_DIR/demo.mp4"
 fi
+
+# Cut springboard/launch dead time between tour segments. Best-effort:
+# a raw-but-complete video always beats a failed trim.
+if pip3 install --quiet av 2>/dev/null; then
+  python3 scripts/trim-demo.py "$MEDIA_DIR/demo.mp4" || echo "trim failed; keeping full video"
+else
+  echo "PyAV unavailable; keeping full video"
+fi
 ls -la "$MEDIA_DIR"
 
 # --- iPad lane: App Store requires iPad screenshots for universal apps ------
