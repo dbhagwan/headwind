@@ -83,7 +83,11 @@ struct MapScreen: View {
                     .scrollContentBackground(.hidden)
                     .containerBackground(.clear, for: .navigation)
             }
-            .presentationDetents([.medium, .large], selection: $sheetDetent)
+            // .fraction(0.99) instead of .large: iOS swaps the sheet to
+            // opaque when it reaches the true large detent and docks to
+            // the screen edges. A hair below full keeps it floating —
+            // and floating sheets keep their Liquid Glass.
+            .presentationDetents([.medium, .fraction(0.99)], selection: $sheetDetent)
         }
         .sheet(isPresented: $showsOfflineSheet) {
             OfflineChartsSheet(layer: chartLayer, region: visibleRegion)
@@ -119,7 +123,7 @@ struct MapScreen: View {
                let airport = airports.airport(ident: ident) {
                 try? await Task.sleep(for: .seconds(1))
                 if DemoData.screenshotMapSheetIsLarge {
-                    sheetDetent = .large
+                    sheetDetent = .fraction(0.99)
                 }
                 selectedAirport = airport
             }
