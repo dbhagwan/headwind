@@ -3,7 +3,9 @@ name: Build & Screenshots
 on:
   workflow_dispatch:
   push:
-    branches: ["main", "claude/headwind-aviation-app-eiapz2"]
+    # main mirrors the development branch; running here too would commit
+    # duplicate captures to main and make every sync a divergence.
+    branches: ["claude/headwind-aviation-app-eiapz2"]
     paths-ignore:
       - "docs/screenshots/**"
       - "docs/media/**"
