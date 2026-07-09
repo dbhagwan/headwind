@@ -12,9 +12,9 @@ category term pilots search. On-device the app still displays as
 
 ## Subtitle (30 chars max)
 
-> Charts, weather & plates. Free.
+> Charts, weather & plates. Free
 
-(30 chars exactly)
+(30 chars exactly — no trailing period; with it Apple rejects at 31)
 
 ## Promotional text (170 chars, editable without review)
 
