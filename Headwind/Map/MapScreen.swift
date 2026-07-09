@@ -34,13 +34,14 @@ struct MapScreen: View {
         ChartLayer(rawValue: chartLayerRaw) ?? .none
     }
 
-    /// Expanded detent is .fraction(0.93): tall enough to read as full,
-    /// low enough that the system keeps the sheet floating and glassy.
-    /// Capture args can substitute other candidates to re-measure.
+    /// Expanded detent is .fraction(0.95), not .large: iOS fades sheets
+    /// to opaque as they approach full height (measured opaque at 0.99
+    /// and at .large; still fully glassy at 0.95 — see
+    /// docs/screenshots/map-sheet-large.png regression capture).
+    /// Capture args can substitute other fractions to re-measure.
     private var sheetDetents: Set<PresentationDetent> {
-        if DemoData.screenshotMapSheetGlassBG { return [.medium, .large] }
         if let f = DemoData.screenshotMapSheetFraction { return [.medium, .fraction(f)] }
-        return [.medium, .fraction(0.93)]
+        return [.medium, .fraction(0.95)]
     }
 
     var body: some View {
@@ -81,26 +82,18 @@ struct MapScreen: View {
                 .padding(.bottom, 24)
         }
         .sheet(item: $selectedAirport) { airport in
-            let content = NavigationStack {
+            NavigationStack {
                 AirportDetailScreen(airport: airport)
                     // The List's grouped background and the
                     // NavigationStack container both paint over the
-                    // sheet background and must stay hidden regardless
-                    // of which background wins below.
+                    // system Liquid Glass and must stay hidden. Never
+                    // set presentationBackground here: custom
+                    // backgrounds (materials or glassEffect) replace
+                    // the system glass and render opaque.
                     .scrollContentBackground(.hidden)
                     .containerBackground(.clear, for: .navigation)
             }
             .presentationDetents(sheetDetents, selection: $sheetDetent)
-
-            if DemoData.screenshotMapSheetGlassBG {
-                // Experiment: explicit glass that doesn't fade to opaque
-                // near full height like the system background does.
-                content.presentationBackground {
-                    Color.clear.glassEffect(.regular, in: .rect)
-                }
-            } else {
-                content
-            }
         }
         .sheet(isPresented: $showsOfflineSheet) {
             OfflineChartsSheet(layer: chartLayer, region: visibleRegion)
@@ -135,12 +128,10 @@ struct MapScreen: View {
             if let ident = DemoData.screenshotMapSheetIdent,
                let airport = airports.airport(ident: ident) {
                 try? await Task.sleep(for: .seconds(1))
-                if DemoData.screenshotMapSheetGlassBG {
-                    sheetDetent = .large
-                } else if let f = DemoData.screenshotMapSheetFraction {
+                if let f = DemoData.screenshotMapSheetFraction {
                     sheetDetent = .fraction(f)
                 } else if DemoData.screenshotMapSheetIsLarge {
-                    sheetDetent = .fraction(0.93)
+                    sheetDetent = .fraction(0.95)
                 }
                 selectedAirport = airport
             }

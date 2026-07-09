@@ -75,22 +75,6 @@ xcrun simctl io "$UDID" screenshot "$OUT_DIR/map-sheet-large.png"
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
 sleep 2
 
-# Glass-persistence experiments: candidate fractional detents plus an
-# explicit glassEffect presentation background at .large. Measured
-# offline to pick the tallest expansion that keeps Liquid Glass.
-mkdir -p "$OUT_DIR/experiments"
-for f in 0.85 0.90 0.95; do
-  xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoData -screenshotTab map -screenshotMapSheet KSFO -screenshotMapSheetFraction "$f"
-  sleep 12
-  xcrun simctl io "$UDID" screenshot "$OUT_DIR/experiments/map-sheet-f${f#0.}.png"
-  xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
-  sleep 2
-done
-xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoData -screenshotTab map -screenshotMapSheet KSFO -screenshotMapSheetGlassBG
-sleep 12
-xcrun simctl io "$UDID" screenshot "$OUT_DIR/experiments/map-sheet-glassbg.png"
-xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
-sleep 2
 
 # Track replay (seeded Bay Tour): deep-opens Track Logs -> first track.
 xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoData -screenshotTab more -screenshotTracks
