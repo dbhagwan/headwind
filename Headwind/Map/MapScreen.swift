@@ -73,7 +73,13 @@ struct MapScreen: View {
         .sheet(item: $selectedAirport) { airport in
             NavigationStack {
                 AirportDetailScreen(airport: airport)
+                    // Let the glass show through instead of the List's
+                    // opaque grouped background.
+                    .scrollContentBackground(.hidden)
             }
+            // Stay Liquid Glass at every detent — by default iOS turns
+            // the sheet opaque as it expands to full height.
+            .presentationBackground(.thinMaterial)
             .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $showsOfflineSheet) {

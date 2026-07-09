@@ -19,6 +19,10 @@ struct WeatherScreen: View {
                 LazyVStack(spacing: 16) {
                     addStationField
 
+                    if !suggestions.isEmpty {
+                        suggestionList
+                    }
+
                     if weather.isOffline {
                         HStack(spacing: 6) {
                             Image(systemName: "wifi.slash")
@@ -67,9 +71,52 @@ struct WeatherScreen: View {
                 await weather.refreshMetars(for: favorites)
             }
             .task {
+                await airports.load()
                 await weather.refreshMetars(for: favorites)
             }
         }
+    }
+
+    /// Airports matching the partially-typed identifier, minus ones
+    /// already tracked.
+    private var suggestions: [Airport] {
+        let query = newStation.trimmingCharacters(in: .whitespaces)
+        guard query.count >= 2 else { return [] }
+        return airports.search(query)
+            .filter { !favorites.contains($0.ident) }
+            .prefix(5)
+            .map { $0 }
+    }
+
+    private var suggestionList: some View {
+        VStack(spacing: 0) {
+            ForEach(suggestions) { airport in
+                Button {
+                    add(airport.ident)
+                } label: {
+                    HStack {
+                        Text(airport.ident)
+                            .font(.subheadline.weight(.semibold))
+                            .monospaced()
+                        Text(airport.name)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                        Spacer()
+                        Image(systemName: "plus.circle")
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                if airport.id != suggestions.last?.id {
+                    Divider().padding(.leading, 16)
+                }
+            }
+        }
+        .glassEffect(.regular, in: .rect(cornerRadius: 16))
     }
 
     private var addStationField: some View {
@@ -90,7 +137,10 @@ struct WeatherScreen: View {
     }
 
     private func addStation() {
-        let ident = newStation.trimmingCharacters(in: .whitespaces).uppercased()
+        add(newStation.trimmingCharacters(in: .whitespaces).uppercased())
+    }
+
+    private func add(_ ident: String) {
         guard !ident.isEmpty, !favorites.contains(ident) else { return }
         favoritesCSV = (favorites + [ident]).joined(separator: ",")
         newStation = ""
@@ -132,15 +182,6 @@ struct MetarCard: View {
                     }
                 }
                 Spacer()
-                Menu {
-                    Button(role: .destructive, action: onRemove) {
-                        Label("Remove Station", systemImage: "trash")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .foregroundStyle(.secondary)
-                        .frame(width: 28, height: 28)
-                }
             }
 
             if let metar {
@@ -193,6 +234,14 @@ struct MetarCard: View {
                     .padding(.leading, 7)
             }
         }
+        // Long-press lifts the card and reveals actions — no chrome on
+        // the card itself. VoiceOver gets the same action directly.
+        .contextMenu {
+            Button(role: .destructive, action: onRemove) {
+                Label("Remove Station", systemImage: "trash")
+            }
+        }
+        .accessibilityAction(named: "Remove Station", onRemove)
     }
 
     private var metar: Metar? { weather.metar(for: ident) }
