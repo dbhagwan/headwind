@@ -4,9 +4,11 @@ Everything App Store Connect asks for, ready to paste.
 
 ## Name (30 chars max)
 
-> Headwind — Flight Planning
+> Headwind EFB
 
-(24 chars. Fallback if name is taken: `Headwind EFB`)
+(12 chars. "Headwind" alone is taken on the App Store; EFB is the exact
+category term pilots search. On-device the app still displays as
+"Headwind" — the home-screen name comes from the bundle, not the listing.)
 
 ## Subtitle (30 chars max)
 
