@@ -28,6 +28,7 @@ struct MapScreen: View {
     @State private var cameraCommand: MapCameraCommand?
     @State private var showsOfflineSheet = false
     @State private var finishedTrack: TrackLog?
+    @State private var sheetDetent: PresentationDetent = .medium
 
     private var chartLayer: ChartLayer {
         ChartLayer(rawValue: chartLayerRaw) ?? .none
@@ -73,14 +74,16 @@ struct MapScreen: View {
         .sheet(item: $selectedAirport) { airport in
             NavigationStack {
                 AirportDetailScreen(airport: airport)
-                    // Let the glass show through instead of the List's
-                    // opaque grouped background.
+                    // Two layers paint over the system Liquid Glass and
+                    // must be cleared — the List's grouped background and
+                    // the NavigationStack's container. With both hidden
+                    // the glass persists through the large detent. Do NOT
+                    // set presentationBackground: any custom background
+                    // replaces the system glass entirely.
                     .scrollContentBackground(.hidden)
+                    .containerBackground(.clear, for: .navigation)
             }
-            // Stay Liquid Glass at every detent — by default iOS turns
-            // the sheet opaque as it expands to full height.
-            .presentationBackground(.thinMaterial)
-            .presentationDetents([.medium, .large])
+            .presentationDetents([.medium, .large], selection: $sheetDetent)
         }
         .sheet(isPresented: $showsOfflineSheet) {
             OfflineChartsSheet(layer: chartLayer, region: visibleRegion)
@@ -109,6 +112,17 @@ struct MapScreen: View {
             }
             await tfrService.refresh()
             await weather.refreshAirSigmets()
+
+            // Capture automation: open an airport sheet over the map,
+            // optionally expanded, to photograph the glass at each detent.
+            if let ident = DemoData.screenshotMapSheetIdent,
+               let airport = airports.airport(ident: ident) {
+                try? await Task.sleep(for: .seconds(1))
+                if DemoData.screenshotMapSheetIsLarge {
+                    sheetDetent = .large
+                }
+                selectedAirport = airport
+            }
         }
     }
 

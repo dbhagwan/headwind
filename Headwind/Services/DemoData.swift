@@ -58,9 +58,23 @@ enum DemoData {
     /// `-screenshotAirport KSFO` → "KSFO"; used by capture automation to
     /// open an airport detail page directly.
     static var screenshotAirportIdent: String? {
+        argumentValue(of: "-screenshotAirport")
+    }
+
+    /// `-screenshotMapSheet KSFO` → opens that airport's sheet over the
+    /// map. Combine with `-screenshotMapSheetLarge` to expand it fully —
+    /// the pair exists to verify the glass background at both detents.
+    static var screenshotMapSheetIdent: String? {
+        argumentValue(of: "-screenshotMapSheet")
+    }
+
+    static var screenshotMapSheetIsLarge: Bool {
+        ProcessInfo.processInfo.arguments.contains("-screenshotMapSheetLarge")
+    }
+
+    private static func argumentValue(of flag: String) -> String? {
         let args = ProcessInfo.processInfo.arguments
-        guard let index = args.firstIndex(of: "-screenshotAirport"),
-              index + 1 < args.count else { return nil }
+        guard let index = args.firstIndex(of: flag), index + 1 < args.count else { return nil }
         return args[index + 1]
     }
 

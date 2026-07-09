@@ -62,6 +62,19 @@ xcrun simctl io "$UDID" screenshot "$OUT_DIR/airport.png"
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
 sleep 2
 
+# Airport sheet over the map at both detents — regression coverage for
+# the Liquid Glass background (it must not go opaque when expanded).
+xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoData -screenshotTab map -screenshotMapSheet KSFO
+sleep 15
+xcrun simctl io "$UDID" screenshot "$OUT_DIR/map-sheet-medium.png"
+xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
+sleep 2
+xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoData -screenshotTab map -screenshotMapSheet KSFO -screenshotMapSheetLarge
+sleep 15
+xcrun simctl io "$UDID" screenshot "$OUT_DIR/map-sheet-large.png"
+xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
+sleep 2
+
 # Track replay (seeded Bay Tour): deep-opens Track Logs -> first track.
 xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoData -screenshotTab more -screenshotTracks
 sleep 12
