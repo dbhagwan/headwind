@@ -72,6 +72,20 @@ enum DemoData {
         ProcessInfo.processInfo.arguments.contains("-screenshotMapSheetLarge")
     }
 
+    /// `-screenshotMapSheetFraction 0.9` → expand the sheet to that
+    /// fractional detent. Used to find the tallest detent that still
+    /// keeps the system Liquid Glass (iOS fades sheets to opaque as
+    /// they approach full height).
+    static var screenshotMapSheetFraction: Double? {
+        argumentValue(of: "-screenshotMapSheetFraction").flatMap(Double.init)
+    }
+
+    /// `-screenshotMapSheetGlassBG` → experiment: replace the system
+    /// sheet background with an explicit glassEffect at the large detent.
+    static var screenshotMapSheetGlassBG: Bool {
+        ProcessInfo.processInfo.arguments.contains("-screenshotMapSheetGlassBG")
+    }
+
     private static func argumentValue(of flag: String) -> String? {
         let args = ProcessInfo.processInfo.arguments
         guard let index = args.firstIndex(of: flag), index + 1 < args.count else { return nil }
