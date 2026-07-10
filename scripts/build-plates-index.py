@@ -27,12 +27,32 @@ def parse_edate(raw):
     return datetime.date(2000 + year, month, day).isoformat()
 
 
+def airac_label(effective_iso):
+    """Cycle label (e.g. 2607) from the effective date — same 28-day
+    grid as HeadwindCore and current-dtpp-cycle.py."""
+    effective = datetime.date.fromisoformat(effective_iso)
+    first = effective
+    while (first - datetime.timedelta(days=28)).year == effective.year:
+        first -= datetime.timedelta(days=28)
+    n = (effective - first).days // 28 + 1
+    return f"{effective.year % 100:02d}{n:02d}"
+
+
 def main(metafile):
     tree = ET.parse(metafile)
     root = tree.getroot()
     cycle = root.get("Cycle", "")
     effective = parse_edate(root.get("from_edate"))
     expires = parse_edate(root.get("to_edate"))
+
+    # The 2607 metafile shipped without the root Cycle attribute; the
+    # label is recoverable from the effective date. An empty cycle must
+    # never reach the bundle — the app keys staleness on it.
+    if not cycle and effective:
+        cycle = airac_label(effective)
+        print(f"metafile lacks Cycle attribute; derived {cycle} from {effective}", file=sys.stderr)
+    if not cycle:
+        sys.exit("No cycle label available (missing Cycle attribute and from_edate)")
 
     airports = {}
     count = 0

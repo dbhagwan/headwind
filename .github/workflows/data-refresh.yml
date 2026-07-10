@@ -66,4 +66,10 @@ jobs:
             --body "Automated regeneration of bundled airports, navaids, and approach plates for FAA cycle \`${cycle}\`.
 
           🤖 Generated with [Claude Code](https://claude.com/claude-code)" \
-            || gh pr edit "$branch" --body "Updated for cycle ${cycle}."
+            || gh pr edit "$branch" --body "Updated for cycle ${cycle}." \
+            || {
+              # Repo setting "Allow GitHub Actions to create PRs" is off.
+              # The branch IS pushed — surface it loudly instead of failing
+              # the whole refresh.
+              echo "::warning title=Data refresh needs a PR::Branch $branch is pushed but Actions may not create PRs. Open https://github.com/${GITHUB_REPOSITORY}/pull/new/$branch or enable 'Allow GitHub Actions to create and approve pull requests' in Settings → Actions → General."
+            }
