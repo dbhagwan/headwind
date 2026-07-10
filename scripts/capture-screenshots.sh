@@ -76,6 +76,13 @@ xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
 sleep 2
 
 
+# Logbook scan review (seeded parsed entries; no camera in simulator).
+xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoData -screenshotTab logbook -screenshotScanReview
+sleep 12
+xcrun simctl io "$UDID" screenshot "$OUT_DIR/logbook-scan.png"
+xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
+sleep 2
+
 # Track replay (seeded Bay Tour): deep-opens Track Logs -> first track.
 xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoData -screenshotTab more -screenshotTracks
 sleep 12

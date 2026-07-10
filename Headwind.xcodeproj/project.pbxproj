@@ -193,6 +193,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Headwind uses the camera to scan paper logbook pages so entries can be imported into your digital logbook.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Headwind uses your location to center the moving map, show ground speed and track, and find nearby airports.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -224,6 +225,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Headwind uses the camera to scan paper logbook pages so entries can be imported into your digital logbook.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Headwind uses your location to center the moving map, show ground speed and track, and find nearby airports.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

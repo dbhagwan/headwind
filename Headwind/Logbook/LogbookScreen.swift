@@ -6,6 +6,7 @@ struct LogbookScreen: View {
     @Query(sort: \LogEntry.date, order: .reverse) private var entries: [LogEntry]
 
     @State private var showingEditor = false
+    @State private var showingScanner = false
 
     private var totalHours: Double { entries.reduce(0) { $0 + $1.totalHours } }
     private var totalLandings: Int { entries.reduce(0) { $0 + $1.dayLandings + $1.nightLandings } }
@@ -39,14 +40,32 @@ struct LogbookScreen: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
+                        showingScanner = true
+                    } label: {
+                        Image(systemName: "doc.viewfinder")
+                    }
+                    .accessibilityLabel("Scan paper logbook pages")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
                         showingEditor = true
                     } label: {
                         Image(systemName: "plus")
                     }
+                    .accessibilityLabel("Add flight")
                 }
             }
             .sheet(isPresented: $showingEditor) {
                 LogEntryEditor()
+            }
+            .sheet(isPresented: $showingScanner) {
+                LogbookScanScreen()
+            }
+            .task {
+                if ProcessInfo.processInfo.arguments.contains("-screenshotScanReview") {
+                    try? await Task.sleep(for: .seconds(1))
+                    showingScanner = true
+                }
             }
         }
     }
