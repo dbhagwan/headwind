@@ -68,7 +68,8 @@ final class LogbookScanService {
     }
 
     private(set) var phase: Phase = .idle
-    private(set) var entries: [ScannedLogEntry] = []
+    /// Settable: the review screen edits entries in place before import.
+    var entries: [ScannedLogEntry] = []
 
     var engineDescription: String {
         #if canImport(FoundationModels)
