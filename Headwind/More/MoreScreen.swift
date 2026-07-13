@@ -27,7 +27,7 @@ struct MoreScreen: View {
                         BriefingScreen()
                     }
                 }
-                Section("App") {
+                Section {
                     toolRow("Settings", icon: "gearshape.fill", tint: .gray) {
                         SettingsScreen()
                     }
@@ -43,6 +43,8 @@ struct MoreScreen: View {
                     } label: {
                         Text("iCloud Sync")
                     }
+                } header: {
+                    Text("App")
                 } footer: {
                     Text(cloudSyncActive
                         ? "Logbook and aircraft profiles sync to your private iCloud, tied to your Apple ID. No Headwind servers involved."
