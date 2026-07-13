@@ -1,21 +1,23 @@
 import Foundation
 import SwiftData
 
-/// A pilot logbook entry, persisted with SwiftData.
+/// A pilot logbook entry, persisted with SwiftData and mirrored to the
+/// user's private iCloud database when available. CloudKit requires
+/// inline defaults on every stored property.
 @Model
 final class LogEntry {
-    var date: Date
-    var aircraftType: String
-    var tailNumber: String
-    var fromIdent: String
-    var toIdent: String
-    var totalHours: Double
-    var picHours: Double
-    var nightHours: Double
-    var instrumentHours: Double
-    var dayLandings: Int
-    var nightLandings: Int
-    var remarks: String
+    var date: Date = Date.now
+    var aircraftType: String = ""
+    var tailNumber: String = ""
+    var fromIdent: String = ""
+    var toIdent: String = ""
+    var totalHours: Double = 0
+    var picHours: Double = 0
+    var nightHours: Double = 0
+    var instrumentHours: Double = 0
+    var dayLandings: Int = 0
+    var nightLandings: Int = 0
+    var remarks: String = ""
 
     init(
         date: Date = .now,

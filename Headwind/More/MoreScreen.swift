@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MoreScreen: View {
+    @Environment(\.cloudSyncActive) private var cloudSyncActive
     @State private var captureShowsTracks = false
 
     var body: some View {
@@ -33,6 +34,19 @@ struct MoreScreen: View {
                     toolRow("About Headwind", icon: "info", tint: .indigo) {
                         AboutScreen()
                     }
+                    LabeledContent {
+                        Label(
+                            cloudSyncActive ? "On" : "Off",
+                            systemImage: cloudSyncActive ? "checkmark.icloud.fill" : "icloud.slash"
+                        )
+                        .foregroundStyle(cloudSyncActive ? .green : .secondary)
+                    } label: {
+                        Text("iCloud Sync")
+                    }
+                } footer: {
+                    Text(cloudSyncActive
+                        ? "Logbook and aircraft profiles sync to your private iCloud, tied to your Apple ID. No Headwind servers involved."
+                        : "Sign in to iCloud in Settings to back up your logbook and aircraft profiles to your Apple ID.")
                 }
             }
             .navigationTitle("More")

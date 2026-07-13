@@ -22,8 +22,14 @@ on-device caches, and never linked to your identity.
 ## Data stored on your device
 
 Flight plans, logbook entries, aircraft profiles, downloaded charts and
-plates, and cached weather live only on your device (and, where you enable
-it, your personal iCloud). Deleting the app deletes them.
+plates, and cached weather live on your device. When you're signed in to
+iCloud, your logbook and aircraft profiles also sync to your **personal,
+private iCloud database** so they survive device loss and follow you to a
+new phone. That database belongs to your Apple ID; we cannot read it, and
+no Headwind server is involved (there are no Headwind servers). Signed
+out of iCloud, everything still works — data simply stays local. Deleting
+the app deletes local data; your iCloud copy remains under Settings →
+Apple ID → iCloud until you remove it.
 
 ## Third-party services the app talks to
 

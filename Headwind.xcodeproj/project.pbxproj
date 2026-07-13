@@ -192,6 +192,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				CODE_SIGN_ENTITLEMENTS = Headwind/Headwind.entitlements;
+				INFOPLIST_KEY_UIBackgroundModes = "remote-notification";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Headwind uses the camera to scan paper logbook pages so entries can be imported into your digital logbook.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Headwind uses your location to center the moving map, show ground speed and track, and find nearby airports.";
@@ -224,6 +226,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				CODE_SIGN_ENTITLEMENTS = Headwind/Headwind.entitlements;
+				INFOPLIST_KEY_UIBackgroundModes = "remote-notification";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Headwind uses the camera to scan paper logbook pages so entries can be imported into your digital logbook.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Headwind uses your location to center the moving map, show ground speed and track, and find nearby airports.";

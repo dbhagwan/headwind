@@ -10,15 +10,17 @@ import HeadwindCore
 /// envelopes come later.
 @Model
 final class UserAircraft {
-    var name: String
-    var emptyWeightLb: Double
-    var emptyArmIn: Double
-    var maxTakeoffWeightLb: Double
-    var fuelCapacityGal: Double
-    var forwardCGIn: Double
-    var aftCGIn: Double
-    var minEnvelopeWeightLb: Double
-    var stations: [StationData]
+    // Inline defaults on every stored property: required for the
+    // CloudKit-backed store.
+    var name: String = ""
+    var emptyWeightLb: Double = 1500
+    var emptyArmIn: Double = 39
+    var maxTakeoffWeightLb: Double = 2400
+    var fuelCapacityGal: Double = 40
+    var forwardCGIn: Double = 35
+    var aftCGIn: Double = 47
+    var minEnvelopeWeightLb: Double = 1200
+    var stations: [StationData] = []
 
     struct StationData: Codable, Hashable, Identifiable {
         var id = UUID()
