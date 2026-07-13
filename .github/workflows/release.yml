@@ -51,6 +51,15 @@ jobs:
           printf '%s' "$ASC_KEY_P8" > ~/private_keys/AuthKey_${ASC_KEY_ID}.p8
           chmod 600 ~/private_keys/AuthKey_${ASC_KEY_ID}.p8
 
+      - name: Ensure App ID capabilities match entitlements
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          pip3 install --quiet --break-system-packages pyjwt cryptography
+          python3 scripts/ensure-bundle-capabilities.py
+
       - name: Archive (Release, cloud-managed signing)
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
