@@ -267,7 +267,9 @@ struct FlightMapView: UIViewRepresentable {
             switch overlay {
             case let radar as RadarTileOverlay:
                 let renderer = MKTileOverlayRenderer(tileOverlay: radar)
-                renderer.alpha = 0.7
+                // Radar is context, not the subject — the chart must
+                // stay readable underneath.
+                renderer.alpha = 0.5
                 return renderer
             case let tiles as MKTileOverlay:
                 let renderer = MKTileOverlayRenderer(tileOverlay: tiles)
