@@ -10,6 +10,7 @@ import SwiftData
 /// account), unsigned CI builds (no iCloud entitlement — CloudKit
 /// container creation throws), and devices signed out of iCloud. The app
 /// must behave identically in all of them, just without sync.
+@MainActor
 enum AppModelContainer {
     static var shared: ModelContainer { made.container }
     static var cloudSyncActive: Bool { made.cloudSyncActive }
