@@ -55,10 +55,10 @@ struct LogbookScreen: View {
                     .accessibilityLabel("Add flight")
                 }
             }
-            .sheet(isPresented: $showingEditor) {
+            .sheet(isPresented: $showingEditor, onDismiss: reindex) {
                 LogEntryEditor()
             }
-            .sheet(isPresented: $showingScanner) {
+            .sheet(isPresented: $showingScanner, onDismiss: reindex) {
                 LogbookScanScreen()
             }
             .task {
@@ -79,9 +79,16 @@ struct LogbookScreen: View {
         .hwGlassCard()
     }
 
+    /// Keep the Siri semantic index in step after edits or imports.
+    private func reindex() {
+        Task { await LogbookIndexer.reindexAll() }
+    }
+
     private func delete(at offsets: IndexSet) {
         for index in offsets {
-            context.delete(entries[index])
+            let entry = entries[index]
+            Task { await LogbookIndexer.remove(entry) }
+            context.delete(entry)
         }
     }
 }

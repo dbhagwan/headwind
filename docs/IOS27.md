@@ -33,6 +33,30 @@ Xcode inventory step tracks when that flips.
 8. **`WritableDocument`/`ReadableDocument`** — the right foundation for the
    1.4 document-binder feature (POH PDFs, certificates) when we build it.
 
+## Siri AI (adopted)
+
+iOS 27's Siri AI acts on apps exclusively through App Intents: it reads
+entities from the Spotlight semantic index for personal-context questions
+and composes published intents into multi-step actions. Apps without App
+Intents are dropped from those flows entirely.
+
+Headwind ships the full integration surface, all iOS 26 SDK-compatible
+(so it works with today's Siri/Shortcuts/Spotlight and lights up in
+Siri AI on 27 with no app change):
+
+- `LogEntryEntity` (AppEntity + IndexedEntity) — every logbook flight in
+  the semantic index with rich searchable text; reindexed on launch and
+  after edits, imports, and deletes
+- `LogbookSummaryIntent` — "how many hours have I flown this year?"
+  (period + aircraft filters, spoken totals, returns hours for chaining)
+- `FindFlightsIntent` — "find my flights to KHAF" (airport/aircraft/
+  period filters, returns entities Siri can present or chain)
+- `OpenLogbookIntent` + `HeadwindShortcuts` phrases
+
+When Xcode 27 reaches CI, add the 27-only refinements:
+`OwnershipProvidingEntity` (all `.unknown`/private — skip confirmation
+prompts) and `IndexedEntityQuery` for system-driven reindexing.
+
 ## Not relevant now
 
 Dictation, HealthKit, Metal 4.1, StoreKit updates, PlayStation controller

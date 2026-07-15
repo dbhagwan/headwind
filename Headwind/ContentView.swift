@@ -41,6 +41,21 @@ struct ContentView: View {
             weather.loadCache()
             await airports.load()
             DemoData.seedIfNeeded(plan: plan, airports: airports, tracks: tracks, context: modelContext)
+            consumeTabRequest()
+            await LogbookIndexer.reindexAll()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .headwindTabRequested)) { _ in
+            consumeTabRequest()
+        }
+    }
+
+    /// Siri/Shortcuts intents route to a tab via AppTabRouter; the
+    /// request may predate this view on cold launch, so it's consumed
+    /// both on appear and on notification.
+    private func consumeTabRequest() {
+        if let tab = AppTabRouter.requested {
+            AppTabRouter.requested = nil
+            selection = tab
         }
     }
 

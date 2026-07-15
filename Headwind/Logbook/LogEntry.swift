@@ -6,6 +6,9 @@ import SwiftData
 /// inline defaults on every stored property.
 @Model
 final class LogEntry {
+    /// Stable identity for App Intents / the Siri semantic index —
+    /// SwiftData persistent IDs change across CloudKit syncs.
+    var uid: UUID = UUID()
     var date: Date = Date.now
     var aircraftType: String = ""
     var tailNumber: String = ""
